@@ -10,8 +10,13 @@
 #include <stddef.h>
 
 uint32_t plat_now_us(void);                 /* 单调微秒, 32 位回绕 (约 71 分钟一次, 只做差用) */
-void    *plat_alloc(size_t n);              /* 小块 (外设状态等) */
+/* 小块 (外设状态等, 清零)。core/mxalloc.c 实现, 记当前量 / 峰值, 底下调平台的 raw 版 */
+void    *plat_alloc(size_t n);
 void     plat_free(void *p);
+char    *plat_strdup(const char *s);
+void     plat_alloc_stats(size_t *cur, size_t *peak);
+void    *plat_raw_alloc(size_t n);          /* 平台给: host = malloc, 固件 = 内核 malloc */
+void     plat_raw_free(void *p);
 void     plat_log(const char *msg);         /* 一行诊断 (固件: 内存日志环 + PC_STAT 最后一条) */
 
 /* 只读文件。open 失败返回 NULL; read_at 返回读到的字节数 (<0 出错) */

@@ -1,7 +1,8 @@
 /*
- * 开机一次性申请大块内存, 逐级降配 (设计: 客户机内存 3 MB -> 2 MB -> 1.5 MB; 覆盖层池 384 -> 256 -> 128 KiB; 读缓存 64 -> 32 KiB)。
- * 每一档按 客户机内存 -> 显存 -> 覆盖层 -> 读缓存 的顺序申请, 任何一块拿不到、或拿完后试探 malloc(reserve) 失败
- * (= 内核 / 基带剩的连续块不够), 就把这一档全部还掉试下一档。reserve 先按 MP_RESERVE (256 KiB) 试,
+ * 开机一次性申请大块内存, 逐级降配 (客户机内存 2 MB -> 1.5 MB; 覆盖层池 256 -> 128 KiB; 读缓存 64 -> 32 KiB)。
+ * 不给 3 MB: 加上 tiny386 小块会超过 MP_BUDGET (Monita 三缓冲实机验证过的堆占用), Win3.1 标准模式 2 MB 就够。
+ * 每一档按 客户机内存 -> 显存 -> 覆盖层 -> 读缓存 的顺序申请, 任何一块拿不到、或拿完后试探 malloc(MP_SMALL + reserve) 失败
+ * (= tiny386 小块拿完后, 内核 / 基带剩的连续块不够), 就把这一档全部还掉试下一档。reserve 先按 MP_RESERVE (256 KiB) 试,
  * 所有档都不行再按硬下限 MP_FLOOR (128 KiB) 试一轮; 还不行就拒绝启动客户机。
  * 分配函数由调用方给 (固件 = 内核 malloc, 单测 = 假堆), 纯逻辑, 单测 tests/test_memplan.c。
  */
@@ -13,6 +14,10 @@
 #define MP_RESERVE (256u * 1024u)
 #define MP_FLOOR   (128u * 1024u)
 #define MP_VGA     (256u * 1024u)
+/* tiny386 自己的小块峰值上限: 实测开机 40 KiB + 平面模式 seen 缓存 150 KiB (640x480) + IDE 写聚合 64 KiB, 取整留余 */
+#define MP_SMALL   (288u * 1024u)
+/* 总占用上限 (不含余量): Monita v6 三缓冲在机上稳定跑过的堆占用约 2 x 2 MB fb */
+#define MP_BUDGET  (4100u * 1024u)
 
 typedef struct {
     void *(*alloc)(void *ctx, uint32_t n);
@@ -29,7 +34,6 @@ typedef struct {
 
 typedef struct { uint32_t mem, ov, rc; } mp_tier_t;
 static const mp_tier_t mp_tiers[] = {
-    { 3u << 20,          384u << 10, 64u << 10 },
     { 2u << 20,          256u << 10, 64u << 10 },
     { (3u << 20) / 2u,   128u << 10, 32u << 10 },
 };
@@ -44,7 +48,7 @@ static inline int mp_try(const mp_ops_t *o, const mp_tier_t *t, uint32_t reserve
         if (!b[i]) goto fail;
     }
     {
-        void *probe = o->alloc(o->ctx, reserve);
+        void *probe = o->alloc(o->ctx, MP_SMALL + reserve);
         if (!probe) goto fail;
         o->release(o->ctx, probe);
     }

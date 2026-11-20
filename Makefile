@@ -1,8 +1,7 @@
-# 主机侧: 单测 + Mac host 版模拟器。固件在 fw/build.sh, QEMU 粗估在 qemu/run.sh, Mac 键鼠转发在 mac/。
-#   make test        跑全部主机单测 (C + python)
-#   make host        build/x86host (headless, 帧导出 PPM/PNG/TXT, 脚本注入键盘)
-#   make host-fast   同上, CPU 用 fast/ 快路径 (-DUSE_FAST)
-#   make host-verify 快路径 + FAST_VERIFY (每条指令解释器重做一遍对比, 慢)
+# 主机侧: 单测 + Mac host 版模拟器。固件在 fw/build.sh, QEMU 估速在 qemu/run.sh。
+#   make test        跑全部主机单测
+#   make fw-test     固件导入守卫 (python)
+#   make host        build/x86host (headless, 帧导出 PNG/PPM/TXT, 脚本注入键盘鼠标)
 CC      ?= cc
 B       := build
 V       := vendor/tiny386
@@ -13,30 +12,29 @@ WARN    := -Wall -Wextra -Wno-unused-parameter -Wno-sign-compare -Wno-unused-fun
 INC     := -I$(V) -Icore -Iport -Ifw/link
 
 VSRC    := $(V)/pc.c $(V)/i8042.c $(V)/i8254.c $(V)/i8257.c $(V)/i8259.c $(V)/ide.c $(V)/vga.c \
-           $(V)/vgafont.c $(V)/pcspk.c $(V)/pci.c $(V)/misc.c
-CORE    := core/overlay.c core/rcache.c core/mxblk.c core/machine.c core/decor.c port/nodev.c
+           $(V)/vgafont.c $(V)/pcspk.c $(V)/pci.c $(V)/misc.c $(V)/i386.c
+CORE    := core/mxalloc.c core/overlay.c core/rcache.c core/mxblk.c core/machine.c core/decor.c port/nodev.c
 HOSTSRC := host/main.c host/host_plat.c host/imgout.c
+HDRS    := $(wildcard core/*.h port/*.h host/*.h $(V)/*.h)
 
-TESTS   := overlay rcache x86proto imgout kbdmap memplan aeabi dirty mxblk
+TESTS   := overlay rcache x86proto imgout kbdmap memplan aeabi dirty mxblk hostalloc
 
-.PHONY: all test fw-test host host-fast host-verify clean
+.PHONY: all test fw-test host clean
 all: test host
 
-$(B):
-	mkdir -p $(B)
+# vendor 另编: -include core/mxvendor.h 把它直接调的 malloc / free 改走 plat_alloc (记账)
+$(B)/o/$(V)/%.o: $(V)/%.c $(HDRS)
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) $(VDEFS) -include core/mxvendor.h $(INC) -w -c -o $@ $<
+$(B)/o/%.o: %.c $(HDRS)
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) $(VDEFS) $(WARN) $(INC) -c -o $@ $<
 
-$(B)/x86host: $(VSRC) $(V)/i386.c $(CORE) $(HOSTSRC) | $(B)
-	$(CC) $(CFLAGS) $(VDEFS) $(INC) -w -o $@ $(VSRC) $(V)/i386.c $(CORE) $(HOSTSRC)
-
-$(B)/x86host-fast: $(VSRC) $(V)/fast/fast.c $(CORE) $(HOSTSRC) | $(B)
-	$(CC) $(CFLAGS) $(VDEFS) -DUSE_FAST $(INC) -w -o $@ $(VSRC) $(V)/fast/fast.c $(CORE) $(HOSTSRC)
-
-$(B)/x86host-verify: $(VSRC) $(V)/fast/fast.c $(CORE) $(HOSTSRC) | $(B)
-	$(CC) $(CFLAGS) $(VDEFS) -DUSE_FAST -DFAST_VERIFY $(INC) -w -o $@ $(VSRC) $(V)/fast/fast.c $(CORE) $(HOSTSRC)
+HOSTOBJ := $(patsubst %.c,$(B)/o/%.o,$(VSRC) $(CORE) $(HOSTSRC))
+$(B)/x86host: $(HOSTOBJ)
+	$(CC) $(CFLAGS) -o $@ $^
 
 host: $(B)/x86host
-host-fast: $(B)/x86host-fast
-host-verify: $(B)/x86host-verify
 
 # 单测: 每个 tests/test_X.c 单独编, 依赖的 core 源在下面列
 T_overlay  := core/overlay.c
@@ -48,8 +46,10 @@ T_memplan  :=
 T_aeabi    := -DAEABI_TEST port/aeabi_div.c
 T_dirty    :=
 T_mxblk    := core/mxblk.c core/overlay.c core/rcache.c
+T_hostalloc := host/host_plat.c core/mxalloc.c
 
-$(B)/test_%: tests/test_%.c $(wildcard core/*.h port/*.h host/*.h) | $(B)
+$(B)/test_%: tests/test_%.c $(HDRS)
+	@mkdir -p $(B)
 	$(CC) -O1 -g $(WARN) -fsanitize=address,undefined $(INC) -Ihost -o $@ $< $(T_$*)
 
 test: $(addprefix $(B)/test_,$(TESTS))

@@ -1,10 +1,10 @@
 /*
  * PMTEST.COM: 客户机里跑的 286 风格保护模式自测 (DOS 下, 实模式起步)。用 clang 的 i386 目标汇编, scripts/mk_guest_tools.py 抠出 .COM。
  *   1. SMSW 看 PE: 已经在保护模式 / V86 (比如装了 JEMM386) 就退出 (2)
- *   2. 建 GDT (16 位代码段 / 数据段 / 基址 2.5 MB 的数据段), LGDT, 用 286 的 LMSW 置 PE, 远跳刷新
- *   3. 保护模式里: LSL / LAR / VERR / VERW 查描述符, 往 2.5 MB 处写 256 字节样式再读回
+ *   2. 建 GDT (16 位代码段 / 数据段 / 基址 1.5 MB - 64 KiB 的数据段 (1.5 MB 档也在), ), LGDT, 用 286 的 LMSW 置 PE, 远跳刷新
+ *   3. 保护模式里: LSL / LAR / VERR / VERW 查描述符, 往 0x170000 处写 256 字节样式再读回
  *   4. 清 PE 回实模式 (386 写法 MOV CR0), 远跳回实模式段
- *   5. 用 INT 15h AH=87h (BIOS 扩展内存块搬移, 它自己再进一次保护模式) 把 2.5 MB 处搬回来比对
+ *   5. 用 INT 15h AH=87h (BIOS 扩展内存块搬移, 它自己再进一次保护模式) 把 0x170000 处搬回来比对
  * 打印 "PMTEST OK" 退出码 0, 否则 "PMTEST FAIL n" 退出码 1。
  * .text 开头垫 0x100 字节, 段内偏移就是 COM 里的偏移; mk_guest_tools.py 自己按基址 0 做重定位, 不需要链接器。
  */
@@ -74,7 +74,7 @@ pm16:
     mov ax, 0x08
     verw ax                     /* 代码段不可写: ZF = 0 */
     jz fail_pm1
-    /* 往 2.5 MB 写样式, 读回 */
+    /* 往 0x170000 写样式, 读回 */
     mov ax, 0x18
     mov es, ax
     xor di, di
@@ -117,7 +117,7 @@ rm16:
     sti
     cmp byte ptr [A(stage)], 0
     jne fail
-    /* INT 15h AH=87h: 从 2.5 MB 搬 256 字节到 buf */
+    /* INT 15h AH=87h: 从 0x170000 搬 256 字节到 buf */
     mov ax, cs
     movzx eax, ax
     shl eax, 4
@@ -184,7 +184,7 @@ gdt_code: .word 0xffff, 0
 gdt_data: .word 0xffff, 0
     .byte 0, 0x92, 0, 0         /* 16 位数据 */
     .word 0xffff, 0x0000
-    .byte 0x28, 0x92, 0, 0      /* 基址 0x280000 (2.5 MB), 限长 64 KiB */
+    .byte 0x17, 0x92, 0, 0      /* 基址 0x170000, 限长 64 KiB */
 gdt_end:
 gdtr: .word gdt_end - gdt - 1
     .long 0
@@ -193,7 +193,7 @@ gdtr: .word gdt_end - gdt - 1
 mvgdt:
     .quad 0, 0
     .word 0xffff, 0x0000
-    .byte 0x28, 0x93, 0, 0      /* 源 = 0x280000 */
+    .byte 0x17, 0x93, 0, 0      /* 源 = 0x170000 */
 mv_dst: .word 0xffff, 0x0000
     .byte 0x00, 0x93, 0, 0      /* 目的 = buf (运行时填) */
     .quad 0, 0

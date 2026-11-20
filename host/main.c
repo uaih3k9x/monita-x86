@@ -2,7 +2,7 @@
  * monita-x86 的 Mac host 版: 和固件同一份 core/ + vendor/tiny386, 设备同款参数 (386 无 FPU, 800x1280 RGB565,
  * 客户机内存 / 覆盖层池按固件档位), 不开窗口: 帧导出 PNG / PPM, 文本模式导出 TXT, 键盘鼠标由脚本注入。
  *
- *   x86host [-bios bios.bin] [-vgabios vgabios.bin] -hda hda.img [-mem 3M] [-ov 384] [-gen 3]
+ *   x86host [-bios bios.bin] [-vgabios vgabios.bin] -hda hda.img [-mem 2M] [-ov 256] [-gen 3]
  *           [-script run.txt] [-snap out.png] [-secs N] [-no-decor] [-q]
  *
  * 脚本 (一行一条, # 注释; 字符串用双引号, 支持 \n \" \\):
@@ -30,7 +30,6 @@
 
 static uint16_t g_fb[MX_FB_W * MX_FB_H];
 static int g_quiet;
-extern size_t host_small_bytes;
 
 static uint32_t parse_size(const char *s){
     char *e; double v = strtod(s, &e);
@@ -78,9 +77,10 @@ static int snap(const char *path){
 static void stats(void){
     const mx_stats_t *s = mx_stats();
     char line[128]; mx_status_line(line, sizeof line);
-    printf("stats: insns %u  %s  keys %u mouse %u  ov %u/%u rejects %u  reads %u writes %u  rc hit %u miss %u\n",
+    size_t cur, peak; plat_alloc_stats(&cur, &peak);
+    printf("stats: insns %u  %s  keys %u mouse %u  ov %u/%u rejects %u  reads %u writes %u  rc hit %u miss %u  small %zu peak %zu\n",
            s->insns_lo, line, s->keys, s->mouse, mx_disk.ov.used, mx_disk.ov.cap, mx_disk.rejects,
-           mx_disk.reads, mx_disk.writes, mx_disk.rc.hits, mx_disk.rc.misses);
+           mx_disk.reads, mx_disk.writes, mx_disk.rc.hits, mx_disk.rc.misses, cur, peak);
 }
 
 /* 取一个参数: 双引号串 (带转义) 或到空白为止 */
@@ -169,8 +169,8 @@ static int run_script(const char *path){
 int main(int argc, char **argv){
     mx_cfg_t c; memset(&c, 0, sizeof c);
     c.bios = "bios.bin"; c.vgabios = "vgabios.bin";
-    c.cpu_gen = 3; c.fpu = 0; c.mem_size = 3u << 20; c.vga_size = 256u << 10; c.decor = 1;
-    uint32_t ov_kib = 384, secs = 0;
+    c.cpu_gen = 3; c.fpu = 0; c.mem_size = 2u << 20; c.vga_size = 256u << 10; c.decor = 1;
+    uint32_t ov_kib = 256, secs = 0;
     const char *script = NULL, *snap_path = NULL;
     for (int i = 1; i < argc; i++){
         const char *a = argv[i], *v = i + 1 < argc ? argv[i + 1] : NULL;
@@ -189,14 +189,16 @@ int main(int argc, char **argv){
     }
     if (!c.hda){ fprintf(stderr, "要 -hda\n"); return 2; }
     c.fb = g_fb;
+    c.mem = calloc(1, c.mem_size); c.vga = calloc(1, c.vga_size);   /* 同固件: 大块事先拿好, plat_alloc 只记小块 */
     c.ov_len = ov_kib * 1024u + 4096u;            /* 池 + 稀疏表 (同固件: memplan 的 extra_ov) */
     c.ov_mem = ov_kib ? malloc(c.ov_len) : NULL;
     if (!c.ov_mem) c.ov_len = 0;
     static uint8_t rc_mem[16 * 4096];
     c.rc_mem = rc_mem; c.rc_blocks = 16;
     if (mx_init(&c)){ fprintf(stderr, "mx_init 失败\n"); return 1; }
+    size_t cur; plat_alloc_stats(&cur, NULL);
     if (!g_quiet) printf("x86host: mem %uK vga %uK ov %u sectors, small allocs %zu B\n",
-                         c.mem_size >> 10, c.vga_size >> 10, mx_disk.ov.cap, host_small_bytes);
+                         c.mem_size >> 10, c.vga_size >> 10, mx_disk.ov.cap, cur);
     int rc = 0;
     if (script) rc = run_script(script);
     if (secs){ uint32_t t0 = plat_now_us(); while (plat_now_us() - t0 < secs * 1000000u) mx_run(10000); }

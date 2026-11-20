@@ -48,7 +48,7 @@ static void run(uint32_t heap, int want_rc, uint32_t want_tier, uint32_t want_re
     if (rc == 0){
         CHECK(p.tier == want_tier && p.reserve == want_reserve);
         CHECK(p.mem_size == mp_tiers[want_tier].mem && p.vga_size == MP_VGA);
-        CHECK(fh_largest(&h) >= p.reserve);          /* 余量真的在 */
+        CHECK(fh_largest(&h) >= p.reserve + MP_SMALL); /* 余量真的在 (tiny386 小块之后还剩 reserve) */
         CHECK(h.n == 4);                             /* 只剩这 4 块, 试探块已还 */
         mp_free(&o, &p);
         CHECK(h.n == 0);
@@ -56,14 +56,17 @@ static void run(uint32_t heap, int want_rc, uint32_t want_tier, uint32_t want_re
 }
 
 int main(void){
+    /* 每档总占用 (含 tiny386 小块峰值) 不超过 Monita 三缓冲实机验证过的量 */
+    for (uint32_t i = 0; i < MP_NTIERS; i++)
+        CHECK(mp_tiers[i].mem + MP_VGA + mp_tiers[i].ov + mp_tiers[i].rc + MP_SMALL <= MP_BUDGET);
+    CHECK(mp_tiers[0].mem >= (2u << 20));            /* Win3.1 标准模式最少 2 MB */
     /* 实测: 堆最大块 ≈ 4.35 MB */
     run(4350u << 10, 0, 0, MP_RESERVE);
-    run(3u << 20, 0, 1, MP_RESERVE);                 /* 3 MB 档放不下 */
-    run(2560u << 10, 0, 2, MP_RESERVE);              /* 2 MB 档放不下 -> 1.5 MB */
-    run(2154u << 10, 0, 2, MP_FLOOR);                /* 1.5 MB 档只剩 200 KiB: 只够硬下限 */
-    run(1600u << 10, -1, 0, 0);                      /* 1.5 MB 档 + 显存都放不下 */
-    /* 试探块失败要退档: 恰好够 tier0 四块但不够 reserve */
-    uint32_t t0 = (3u << 20) + MP_VGA + (384u << 10) + 2048 + (64u << 10);
+    run(3000u << 10, 0, 1, MP_RESERVE);              /* 2 MB 档 + 余量放不下 -> 1.5 MB */
+    run(2400u << 10, 0, 1, MP_FLOOR);                /* 1.5 MB 档只够硬下限 */
+    run(2300u << 10, -1, 0, 0);                      /* 都放不下: 不启动客户机 */
+    /* 试探块失败要退档: 恰好够 tier0 四块但不够余量 */
+    uint32_t t0 = mp_tiers[0].mem + MP_VGA + mp_tiers[0].ov + 2048 + mp_tiers[0].rc;
     run(t0 + 1000, 0, 1, MP_RESERVE);
     return tc_done("memplan");
 }

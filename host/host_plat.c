@@ -12,9 +12,8 @@ uint32_t plat_now_us(void){
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return (uint32_t)ts.tv_sec * 1000000u + (uint32_t)(ts.tv_nsec / 1000);
 }
-size_t host_small_bytes;           /* pc_new 里小块分配的总量 (估固件堆用量) */
-void *plat_alloc(size_t n){ host_small_bytes += n; return calloc(1, n); }
-void plat_free(void *p){ free(p); }
+void *plat_raw_alloc(size_t n){ return malloc(n); }
+void plat_raw_free(void *p){ free(p); }
 void plat_log(const char *msg){ fprintf(stderr, "[x86] %s\n", msg); }
 
 plat_file *plat_open_ro(const char *path){

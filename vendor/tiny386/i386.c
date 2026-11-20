@@ -3838,6 +3838,10 @@ static bool verrw_helper(CPUI386 *cpu, int sel, int wr, int *zf)
 		break; \
 	}
 
+#ifdef MONITA_X86
+uint64_t mx_uticks64(void);
+static uint64_t get_nticks() { return mx_uticks64() * 1000; }
+#else
 #include <time.h>
 static uint64_t get_nticks()
 {
@@ -3846,6 +3850,7 @@ static uint64_t get_nticks()
 	return ((uint64_t) ts.tv_sec * 1000000000ull +
 		(uint64_t) ts.tv_nsec);
 }
+#endif
 
 #define RDTSC() \
 	uint64_t tsc = get_nticks(); \
@@ -5385,7 +5390,7 @@ int cpui386_get_excno(CPUI386 *cpu)
 	return cpu->excno;
 }
 
-#if !defined(_WIN32) && !defined(__wasm__)
+#if !defined(_WIN32) && !defined(__wasm__) && !defined(MONITA_FW)
 void cpui386_set_verbose() // for debugging
 {
 	verbose = true;

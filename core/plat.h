@@ -10,6 +10,7 @@
 #include <stddef.h>
 
 uint32_t plat_now_us(void);                 /* 单调微秒, 32 位回绕 (约 71 分钟一次, 只做差用) */
+uint32_t plat_time_utc(void);               /* 墙钟 Unix 秒 (CMOS 时钟); 拿不到给 0 */
 /* 小块 (外设状态等, 清零)。core/mxalloc.c 实现, 记当前量 / 峰值, 底下调平台的 raw 版 */
 void    *plat_alloc(size_t n);
 void     plat_free(void *p);
@@ -25,6 +26,9 @@ plat_file *plat_open_ro(const char *path);
 int        plat_read_at(plat_file *f, uint32_t off, void *buf, uint32_t n);
 int32_t    plat_size(plat_file *f);
 void       plat_close(plat_file *f);
+
+void     plat_sleep_us(uint32_t us);        /* 客户机 HLT 时 (固件: 让出 CPU) */
+void     plat_abort(void);                  /* tiny386 内部错误: 停客户机, 不重启设备 */
 
 /* 模拟循环每个时间片调一次: 固件在这里让出 CPU / 喂狗 / 收链路帧, host 版什么都不做 */
 void plat_slice(void);

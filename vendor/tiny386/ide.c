@@ -2379,6 +2379,9 @@ int ide_attach(IDEIFState *s, int drive, const char *filename)
 int ide_attach_cd(IDEIFState *s, int drive, const char *filename)
 {
     assert(MAX_MULT_SECTORS >= 4);
+#ifdef MONITA_X86
+    return -1;   /* monita-x86: 没有光驱 (也就不需要按文件打开的块设备) */
+#endif
 #ifdef IDE_ENABLE_CISO
     BlockDevice *bs = block_device_init_ciso(filename);
 #else

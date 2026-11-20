@@ -17,7 +17,7 @@ CORE    := core/mxalloc.c core/overlay.c core/rcache.c core/mxblk.c core/machine
 HOSTSRC := host/main.c host/host_plat.c host/imgout.c
 HDRS    := $(wildcard core/*.h port/*.h host/*.h $(V)/*.h)
 
-TESTS   := overlay rcache x86proto imgout kbdmap memplan aeabi dirty mxblk hostalloc
+TESTS   := overlay rcache x86proto imgout kbdmap memplan aeabi dirty mxblk hostalloc civil mxlibc
 
 .PHONY: all test fw-test host clean
 all: test host
@@ -47,6 +47,7 @@ T_aeabi    := -DAEABI_TEST port/aeabi_div.c
 T_dirty    :=
 T_mxblk    := core/mxblk.c core/overlay.c core/rcache.c
 T_hostalloc := host/host_plat.c core/mxalloc.c
+T_mxlibc   := -DMXLIBC_TEST port/mxlibc.c
 
 $(B)/test_%: tests/test_%.c $(HDRS)
 	@mkdir -p $(B)

@@ -20,6 +20,13 @@ uint32_t mx_heap_free_kib;               /* 固件开机分配完后填 (状态�
 
 /* ---- tiny386 的平台 HAL (pc.h) ---- */
 uint32_t get_uticks(void){ return plat_now_us(); }
+/* 32 位微秒累加成 64 位 (CMOS 周期中断 / RDTSC 用); 两次调用间隔要小于 71 分钟, 模拟循环里总满足 */
+uint64_t mx_uticks64(void){
+    static uint32_t last; static uint64_t acc;
+    uint32_t now = plat_now_us();
+    acc += (uint32_t)(now - last); last = now;
+    return acc;
+}
 void *pcmalloc(long size){ return plat_alloc((size_t)size); }
 void *bigmalloc(size_t size){
     g_big_n++;
@@ -40,10 +47,10 @@ int load_rom(void *phys_mem, const char *file, uword addr, int backward){
 }
 
 /* ---- 刷屏 ---- */
+static uint32_t g_clears;
 static void redraw(void *opaque, int x, int y, int w, int h){
     (void)opaque;
-    if (w >= MX_FB_W && h >= MX_FB_H) g_decor_dirty = 1;     /* 换模式时 vga.c 整屏清过 */
-    fbd_add(&g_dirty, x, y, w, h, MX_FB_W, MX_FB_H);
+    fbd_add(&g_dirty, x, y, w, h, MX_FB_W, MX_FB_H);          /* vga.c 报的是画面区 */
 }
 
 static void clean_cb(void *ctx, uintptr_t a, uint32_t n){ (void)ctx; if (C.clean) C.clean(C.clean_ctx, a, n); }
@@ -58,6 +65,11 @@ static void draw_status(void){
 
 static void refresh(int full){
     vga_refresh(g_pc->vga, redraw, NULL, full);
+    uint32_t cl = vga_monita_clears(g_pc->vga);
+    if (cl != g_clears){                                        /* 换模式时 vga.c 整屏清过: 面板要重画, 整屏都脏 */
+        g_clears = cl; g_decor_dirty = 1;
+        fbd_add(&g_dirty, 0, 0, MX_FB_W, MX_FB_H, MX_FB_W, MX_FB_H);
+    }
     if (C.decor && g_decor_dirty){
         g_decor_dirty = 0;
         decor_panel(C.fb, MX_FB_W, MX_FB_H);

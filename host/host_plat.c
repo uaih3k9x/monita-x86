@@ -12,6 +12,7 @@ uint32_t plat_now_us(void){
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return (uint32_t)ts.tv_sec * 1000000u + (uint32_t)(ts.tv_nsec / 1000);
 }
+uint32_t plat_time_utc(void){ return (uint32_t)time(NULL); }
 void *plat_raw_alloc(size_t n){ return malloc(n); }
 void plat_raw_free(void *p){ free(p); }
 void plat_log(const char *msg){ fprintf(stderr, "[x86] %s\n", msg); }
@@ -33,3 +34,5 @@ int32_t plat_size(plat_file *f){
 }
 void plat_close(plat_file *f){ fclose(f->f); free(f); }
 void plat_slice(void){ }
+void plat_sleep_us(uint32_t us){ usleep(us); }
+void plat_abort(void){ abort(); }

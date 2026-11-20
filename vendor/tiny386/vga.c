@@ -149,6 +149,9 @@ struct VGAState {
     /* text mode state */
     uint32_t last_palette[16];
     int last_gw, last_gh;   /* the graphics picture's size; -1: just cleared */
+#ifdef MONITA_X86
+    uint32_t mx_clears;     /* monita-x86: 整屏清过几次 (外面据此重画机箱面板) */
+#endif
 #ifndef FULL_UPDATE
     uint16_t last_ch_attr[MAX_TEXT_WIDTH * MAX_TEXT_HEIGHT];
 #endif
@@ -207,6 +210,9 @@ static void simplefb_clear(FBDevice *fb_dev)
 static void vga_clear_screen(VGAState *s)
 {
     simplefb_clear(s->fb_dev);
+#ifdef MONITA_X86
+    s->mx_clears++;
+#endif
 #ifdef VGA_PLANAR_FAST
     s->seen_valid = false;
 #endif
@@ -1158,7 +1164,11 @@ static void vga_text_refresh(VGAState *s,
     stride = (cxend - cxbegin) * cwidth * (BPP / 8);
     }
 #endif
+#ifdef MONITA_X86
+    redraw_func(opaque, x1, y1, width1, height1);   /* 只报画面区 (原来整屏, 外面没法只刷脏区) */
+#else
     redraw_func(opaque, 0, 0, fb_dev->width, fb_dev->height);
+#endif
 }
 
 static void vga_graphic_refresh(VGAState *s,
@@ -1655,7 +1665,11 @@ static void vga_graphic_refresh(VGAState *s,
     /* every line of the screen is now what s->seen says, or not */
     s->seen_valid = fast;
 #endif
+#if defined(MONITA_X86) && !(defined(SCALE_3_2) || defined(SCALE_2_1) || defined(SWAPXY))
+    redraw_func(opaque, i0 % fb_dev->stride / (BPP / 8), i0 / fb_dev->stride, w, h);   /* 只报画面区 */
+#else
     redraw_func(opaque, 0, 0, fb_dev->width, fb_dev->height);
+#endif
 }
 
 int vga_step(VGAState *s)
@@ -2680,6 +2694,8 @@ int vga_monita_info(VGAState *s, int *cols, int *rows, uint32_t *start)
     if (start) *start = s->cr[0x0d] | (s->cr[0x0c] << 8);
     return s->graphic_mode;
 }
+
+uint32_t vga_monita_clears(VGAState *s) { return s->mx_clears; }
 
 /* 文本模式第 i 个字符格 (从 start 起): 低 8 位字符, 高 8 位属性 (同 vga_text_refresh 读法: 每格 4 字节, 平面 0 / 1) */
 uint16_t vga_monita_cell(VGAState *s, uint32_t i)

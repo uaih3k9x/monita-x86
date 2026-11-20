@@ -118,6 +118,24 @@ static int bin2bcd(int a)
 	return ((a / 10) << 4) | (a % 10);
 }
 
+#ifdef MONITA_X86
+/* monita-x86: 时间从平台拿 (固件: 设备 RTC, 拿不到就是 0 = 1970), 换算不用 libc */
+#include "civil.h"
+uint32_t plat_time_utc(void);
+static void cmos_update_time(CMOS *s)
+{
+	civil_t c;
+	civil_from_unix(plat_time_utc(), &c);
+	s->data[0] = bin2bcd(c.sec);
+	s->data[2] = bin2bcd(c.min);
+	s->data[4] = bin2bcd(c.hour);
+	s->data[6] = bin2bcd(c.wday);
+	s->data[7] = bin2bcd(c.mday);
+	s->data[8] = bin2bcd(c.mon);
+	s->data[9] = bin2bcd(c.year % 100);
+	s->data[0x32] = bin2bcd(c.year / 100);
+}
+#else
 static void cmos_update_time(CMOS *s)
 {
 	struct tm tm;
@@ -138,6 +156,7 @@ static void cmos_update_time(CMOS *s)
 	s->data[9] = bin2bcd(tm.tm_year % 100);
 	s->data[0x32] = bin2bcd((tm.tm_year / 100) + 19);
 }
+#endif
 
 CMOS *cmos_init(long mem_size, int irq, void *pic, void (*set_irq)(void *pic, int irq, int level))
 {
@@ -227,7 +246,9 @@ void u8250_reg_write(U8250 *uart, int off, uint8_t val)
 			uart->dll = val;
 			break;
 		} else {
-#ifndef __wasm__
+#if defined(MONITA_FW)
+			(void)val;   /* monita-x86 固件: 串口输出丢掉 */
+#elif !defined(__wasm__)
 			ssize_t r;
 			do {
 				r = write(uart->out_fd, &val, 1);
@@ -283,6 +304,14 @@ void u8250_update(U8250 *uart)
 #define REG_B_AIE 0x20
 #define REG_B_UIE 0x10
 
+#ifdef MONITA_X86
+/* monita-x86: 用平台的 64 位微秒 (core/machine.c), 不用 clock_gettime */
+uint64_t mx_uticks64(void);
+static uint32_t cmos_get_timer(CMOS *s)
+{
+	return (uint32_t)(mx_uticks64() * CMOS_FREQ / 1000000);
+}
+#else
 static uint32_t cmos_get_timer(CMOS *s)
 {
 	struct timespec ts;
@@ -291,6 +320,7 @@ static uint32_t cmos_get_timer(CMOS *s)
 	return (uint32_t)ts.tv_sec * CMOS_FREQ +
 		((uint64_t)ts.tv_nsec * CMOS_FREQ / 1000000000);
 }
+#endif
 
 static void cmos_update_timer(CMOS *s)
 {
@@ -364,6 +394,17 @@ uint8_t cmos_set(void *cmos, int addr, uint8_t val)
 	return val;
 }
 
+#ifdef MONITA_X86
+/* monita-x86: 不要 emulink (客户机通过它读写宿主文件 / 假软驱): 全部空实现, 固件里没有任何写文件路径 */
+struct EMULINK { int unused; };
+EMULINK *emulink_init() { return malloc(sizeof(EMULINK)); }
+int emulink_attach_floppy(EMULINK *e, int i, const char *filename) { return -1; }
+uint32_t emulink_status_read(void *s) { return 0; }
+void emulink_cmd_write(void *s, uint32_t val) { }
+void emulink_data_write(void *s, uint32_t val) { }
+int emulink_data_write_string(void *s, uint8_t *buf, int size, int count) { return 0; }
+int emulink_data_read_string(void *s, uint8_t *buf, int size, int count) { return 0; }
+#else
 struct fdfmt {
 	uint8_t sectors;
 	uint8_t tracks;
@@ -604,3 +645,4 @@ int emulink_data_read_string(void *s, uint8_t *buf, int size, int count)
 	e->status = -1;
 	return count;
 }
+#endif /* MONITA_X86 */

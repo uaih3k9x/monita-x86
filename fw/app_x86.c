@@ -5,8 +5,11 @@
  *   收链路帧 (fw/xdisp.h: 键盘 / 鼠标进输入环, CTRL / STAT 应答) -> 跑模拟器一个时间片 -> 睡 YIELD_MS 让给内核和基带。
  *   客户机 HLT 时 tiny386 调 usleep -> plat_sleep_us 也睡 1 ms。看门狗每秒喂一次。
  * 显示: 单缓冲, 直接画在原厂 fb (0x80de0000, 不在堆里), 每轮刷屏后对脏区做 D-cache clean。
- * 内存: core/memplan.h 逐级降配 (2 MB -> 1.5 MB 客户机内存), 拿完之后堆里至少还剩 MP_SMALL + 256 KiB (最差 128 KiB)。
+ * 内存: core/memplan.h 逐级降配 (2 MB -> 1.5 MB 客户机内存), 拿完之后堆里至少还剩 MP_SMALL + 256 KiB, 留不出来就不启动客户机。
  * 写盘: 客户机写只进内存覆盖层 (core/overlay.c), 本固件没有任何写 flash / 写文件的导入 (validate.py --target x86 查)。
+ *
+ * 逃生口 (同 monita-doom): 上电时按住 "−" (GPIO23, 低有效) = 安全模式, 不挂外挂 flash、不启动客户机, 只应答链路、照常喂狗;
+ *   正常开机也先等 BOOT_WAIT_MS 再去碰外挂 flash 和模拟器, 万一后面崩了反复重启, 刷机工具还有窗口。
  *
  * 入口约定 (照原厂): enter 里只配看门狗 + 建任务就返回, 不得阻塞; 任务 prio 12, 7 参数, event_count = 1。
  */
@@ -28,6 +31,8 @@
 #define SLICE_US   15000u        /* 一次跑这么久的客户机 */
 #define YIELD_MS   2u            /* 然后睡这么久 (占空比约 88%; 上机按基带表现调) */
 #define TASK_STACK 16384u        /* QEMU 实测栈高水位 < 2 KiB */
+#define BOOT_WAIT_MS 3000u
+#define KEY_GPIO_MINUS 23u       /* 前面板 "−": 脚 13 func4 -> GPIO23, 低有效 (Monita io/keys_hw.h, 实机证实) */
 
 static uint8_t     g_pl[XD_MAX_PAYLOAD] __attribute__((aligned(4)));
 static uint8_t     g_rx[RX_CHUNK] __attribute__((aligned(4)));
@@ -143,6 +148,21 @@ static void task_entry(void *arg){
     ql_uart_register_cb(PORT, uart_cb);
 
     /* 同 extdump (实机两个都返回 0): init 结果不管都去 mount, 同次上电只挂一次。返回值只显示, 能不能用看下面三个文件开不开得了 */
+    /* 逃生口: 只配 "−" 这一个键 (同 Monita keys_hw_init 的这一项: 另一个可选脚 121 先设 func1) */
+    ql_pin_set_func(121, 1); ql_pin_set_func(13, 4);
+    ql_gpio_deinit(KEY_GPIO_MINUS);
+    ql_gpio_init(KEY_GPIO_MINUS, GPIO_INPUT, PULL_UP, 1);
+    ql_rtos_task_sleep_ms(10);                          /* 等上拉稳定 */
+    uint8_t lv = 1;
+    if (ql_gpio_get_level(KEY_GPIO_MINUS, &lv) == 0 && lv == 0){
+        plat_log("safe mode (- held at power-on)");
+        x86fw_dead();
+    }
+    say(C_FG, "hold - at power-on for safe mode; waiting 3 s");
+    for (uint32_t t0 = plat_now_us(); plat_now_us() - t0 < BOOT_WAIT_MS * 1000u;){
+        ql_rtos_semaphore_wait(g_sem, 20); link_drain(); housekeeping();
+    }
+
     int r1 = ql_spi6_ext_nor_flash_init();
     int r2 = ql_spi6_ext_nor_flash_sffs_mount();
     snprintf(line, sizeof line, "EFS: init %d mount %d", r1, r2);

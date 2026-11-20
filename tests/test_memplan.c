@@ -63,8 +63,9 @@ int main(void){
     /* 实测: 堆最大块 ≈ 4.35 MB */
     run(4350u << 10, 0, 0, MP_RESERVE);
     run(3000u << 10, 0, 1, MP_RESERVE);              /* 2 MB 档 + 余量放不下 -> 1.5 MB */
-    run(2400u << 10, 0, 1, MP_FLOOR);                /* 1.5 MB 档只够硬下限 */
+    run(2400u << 10, -1, 0, 0);                      /* 1.5 MB 档放得下但余量 < 256 KiB: 不启动 (没有更低的保底档) */
     run(2300u << 10, -1, 0, 0);                      /* 都放不下: 不启动客户机 */
+    CHECK(MP_RESERVE >= 256u * 1024u);               /* 给内核 / 基带的保底不低于 256 KiB */
     /* 试探块失败要退档: 恰好够 tier0 四块但不够余量 */
     uint32_t t0 = mp_tiers[0].mem + MP_VGA + mp_tiers[0].ov + 2048 + mp_tiers[0].rc;
     run(t0 + 1000, 0, 1, MP_RESERVE);

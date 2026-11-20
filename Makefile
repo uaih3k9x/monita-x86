@@ -56,6 +56,7 @@ test: $(addprefix $(B)/test_,$(TESTS))
 	@set -e; for t in $(TESTS); do ./$(B)/test_$$t; done
 	@python3 -I fw/sdk/test_validate.py
 	@python3 -I tests/test_x86kbd.py
+	@python3 -I tests/test_efs_put.py
 
 # 固件导入守卫 (要 fw/app.imports)
 fw-test:

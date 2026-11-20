@@ -7,7 +7,7 @@
 | `vendor/tiny386/i8257.c` | 原出自 QEMU，经 tiny386 修改 | Vassili Karpov (malc) | MIT 式（文件头原文保留） |
 | `vendor/tiny386/pcspk.c` | 原出自 QEMU，经 tiny386 修改 | Joachim Henke | MIT 式（文件头原文保留） |
 | `vendor/tiny386/ini.c`、`ini.h` | inih | Ben Hoyt | BSD-3-Clause（文件头原文保留） |
-| `vendor/tiny386/vgafont.c` | VGA 8x16 / 8x8 字模数据（同 QEMU vgafont.h 一系） | — | 随 tiny386 分发 |
+| `vendor/tiny386/vgafont.c` | SeaBIOS 的 vgafont16（`vgasrc/vgafonts.c`，出自 fntcol16.zip），以文件头为准 | — | public domain（文件头） |
 
 ## 对 tiny386 的改动
 

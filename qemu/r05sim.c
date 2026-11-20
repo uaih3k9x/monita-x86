@@ -15,7 +15,7 @@
 #include "kbdmap.h"
 
 #define UART   ((volatile uint32_t *)0x09000000)
-#define SIZES  ((volatile uint32_t *)0x40F00000)   /* [0..2] 文件大小 [3] icount shift [4] 场景 0 FreeDOS 1 Win3.1 [6] 秒数 [8] 堆字节 (0 = 4.35 MB) */
+#define SIZES  ((volatile uint32_t *)0x40F00000)   /* [0..2] 文件大小 [3] icount shift [4] 场景 0 FreeDOS 1 Win3.1 [6] 秒数 [8] 堆字节 (0 = 4.35 MB) [9] 1 = 上电时按住 "−" */
 #define FB     0x80de0000u
 int semi(int op, void *arg);
 int vsnprintf(char *o, size_t n, const char *f, va_list ap);
@@ -50,7 +50,8 @@ static const struct { const char *path; uint32_t at; int i; } files[3] = {
     { "EFS:/monita/x86/hda.img", 0x42000000u, 2 } };
 static uint32_t g_pos[4]; static int g_bad_fs;
 static int mounted;
-int ql_spi6_ext_nor_flash_init(void){ return 0; }
+static int g_efs_inits;
+int ql_spi6_ext_nor_flash_init(void){ g_efs_inits++; return 0; }
 int ql_spi6_ext_nor_flash_sffs_mount(void){ if (mounted){ say("SIM: 第二次 mount (实机会返回错误)\n"); g_bad_fs++; } mounted = 1; return 0; }
 int ql_fopen(const char *path, const char *mode){
     if (strcmp(mode, "rb")){ say("SIM: fopen 模式不是 rb: %s\n", mode); g_bad_fs++; return -1; }
@@ -77,6 +78,7 @@ int ql_fclose(int fd){ (void)fd; return 0; }
 int ql_pin_set_func(uint32_t pin, uint32_t func){ (void)pin; (void)func; return 0; }
 int ql_gpio_init(uint32_t g, uint32_t d, uint32_t p, uint32_t l){ (void)g; (void)d; (void)p; (void)l; return 0; }
 int ql_gpio_deinit(uint32_t g){ (void)g; return 0; }
+int ql_gpio_get_level(uint32_t g, uint8_t *l){ *l = (g == 23 && SIZES[9]) ? 0 : 1; return 0; }   /* SIZES[9]: 假装按住 "−" */
 int ql_gpio_set_level(uint32_t g, uint32_t l){ if (g == 7) say("SIM: 背光 %u\n", l); return 0; }
 int ql_mipi_lcd_init(const void *cfg){ (void)cfg; return 0; }
 int ql_mipi_lcd_write_screen(void *fb){ say("SIM: 扫描基址 %08x\n", (uint32_t)fb); return 0; }
@@ -135,8 +137,8 @@ int ql_uart_write(uint32_t port, const void *data, uint32_t len){
 static int g_step;
 static uint32_t g_sleep_ms_total, g_sleeps;
 static void dump_and_exit(void){
-    say("SIM END: %u ms, 回包 %u, 睡 %u 次共 %u ms, 喂狗 %u 次 (最长间隔 %u ms, cfg %u), 堆峰值 %u B / %u B, 文件系统违规 %d\n",
-        now_ms(), g_replies, g_sleeps, g_sleep_ms_total, g_wdt_feeds, g_wdt_gap_max, g_wdt_cfg, g_peak, g_end - HEAP0, g_bad_fs);
+    say("SIM END: %u ms, 回包 %u, 睡 %u 次共 %u ms, 喂狗 %u 次 (最长间隔 %u ms, cfg %u), 堆峰值 %u B / %u B, 文件系统违规 %d, EFS init %d 次\n",
+        now_ms(), g_replies, g_sleeps, g_sleep_ms_total, g_wdt_feeds, g_wdt_gap_max, g_wdt_cfg, g_peak, g_end - HEAP0, g_bad_fs, g_efs_inits);
     struct { const char *p; uint32_t mode, len; } o = { "fwsim-fb.raw", 6, 12 };
     int fd = semi(0x01, &o);
     struct { int fd; const void *buf; uint32_t n; } w = { fd, (const void *)FB, 800u * 1280u * 2u };

@@ -45,7 +45,7 @@ ALWAYS_DENY_NAMES = [
 TARGET_IMPORT_ALLOW = {
     # monita-x86 固件 (fw/app_x86.c): 大屏 + USB 链路 + 外挂 flash 只读 (盘镜像 / BIOS)。没有任何写文件 / 写 flash 接口。
     "x86": {
-        "ql_pin_set_func", "ql_gpio_init", "ql_gpio_deinit", "ql_gpio_set_level",
+        "ql_pin_set_func", "ql_gpio_init", "ql_gpio_deinit", "ql_gpio_set_level", "ql_gpio_get_level",
         "ql_rtos_task_create", "ql_rtos_task_sleep_ms",
         "ql_rtos_semaphore_create", "ql_rtos_semaphore_wait", "ql_rtos_semaphore_release",
         "ql_dev_cfg_wdt", "ql_dev_feed_wdt", "osiUpTimeUS",

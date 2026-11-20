@@ -22,12 +22,15 @@ tests/     主机单测 (C + python)、客户机自测程序、主机版脚本
 | 主机版 FreeDOS | 过：SeaBIOS → FreeDOS → HIMEMX/XMS → PMTEST（286 保护模式自测）→ VGA 12h/13h，2 MB 和 1.5 MB 都过；硬复位、硬复位 + 清覆盖层、Ctrl+Alt+Del 后都回到提示符，XMS 还在 |
 | 主机版 Win3.1 | 过：2 MB 和 1.5 MB 都进 Program Manager；键盘开扫雷、PS/2 鼠标能动；硬复位和 Ctrl+Alt+Del 后都重新进 Windows |
 | 脏区 | 两个脚本里多处 `expect-clean`：影子缓冲只收 clean 回调报过的字节，和帧缓冲逐字节相同（故意少报一行文字时能抓到） |
-| QEMU（ARM，和固件同一批 .o） | FreeDOS 到提示符、Win3.1 到 Program Manager 都过 |
-| fwsim（真固件代码 + 假 R05 导入） | FreeDOS 收到键盘帧敲 `ver`、Win3.1 进 Program Manager 收到鼠标帧，都过；缺 `bios.bin` / `hda.img` 时屏上打原因、停在应答循环里，STAT 带回原因 |
-| 固件构建 | `fw/build.sh`：181,568 B，29 个导入全在 x86 白名单里，没有 VFP/NEON，静态校验 PASS |
+| QEMU（ARM，和固件同一批 .o，对齐检查打开） | FreeDOS 到提示符、Win3.1 到 Program Manager 都过 |
+| fwsim（真固件代码 + 假 R05 导入，对齐检查打开） | FreeDOS 收到键盘帧敲 `ver`、Win3.1 进 Program Manager 收到鼠标帧，都过；缺 `bios.bin` / `hda.img` 时屏上打原因、停在应答循环里，STAT 带回原因；按住 "−" 上电进安全模式，不碰 EFS |
+| 固件构建 | `fw/build.sh`：183,488 B，30 个导入全在 x86 白名单里，没有 VFP/NEON，静态校验 PASS |
 | 真机 | **没上过**。速度、XIP 代码执行、外挂 flash 读、看门狗、基带共存都要上机才知道 |
 
-单测：`make test`（13 个 C 单测 + 固件导入守卫 + Mac 转发工具）。
+单测：`make test`（13 个 C 单测 + 固件导入守卫 + Mac 转发工具 + EFS 上传脚本）。
+
+**对齐**：R05 上非对齐访问会不会 fault 没核实，所以固件和 QEMU 外壳一律 `-mno-unaligned-access` 编（不加的话 tiny386 的取指会对奇数地址做
+`ldrh`）；QEMU 外壳（`qemu/start.S`）打开对齐检查（SCTLR.A = 1）按最严的设定跑，出任何 CPU 异常都打出地址、半主机退出码 3。
 
 ## 速度（QEMU 估算，不是实测）
 
@@ -37,11 +40,12 @@ QEMU 看不到的：代码在内部 NOR 上 XIP 执行的取指延迟、cache �
 
 | 假设的有效速度 | FreeDOS 到 `C:\>` | Win3.1 进图形模式 | Program Manager 画完 | Windows 里客户机速度 |
 |---|---|---|---|---|
-| 500 MIPS（IPC 1.0，上限） | 6.2 s | 6.3 s | — | — |
-| 250 MIPS（IPC 0.5） | 8.0 s | 8.8 s | 12–15 s | 1.39 MIPS（fwsim 带让出 CPU：1.2–1.3） |
-| 125 MIPS（IPC 0.25） | 11.4 s | 13.2 s | 23 s 以后（截图停在没画完的画面） | 0.65 MIPS |
+| 500 MIPS（IPC 1.0，上限） | 6.2 s | 6.3 s | — | 2.8 MIPS |
+| 250 MIPS（IPC 0.5） | 8.0 s | 8.9 s | 12–15 s | 1.35 MIPS（fwsim 带让出 CPU：1.2–1.3） |
+| 125 MIPS（IPC 0.25） | 11.4 s | 11.8–13.2 s | 23 s 以后（截图停在没画完的画面） | 0.63 MIPS |
 
-- 表里是 `qemu/run.sh`（不让出 CPU）。固件每跑 15 ms 睡 2 ms，fwsim 里 Windows 是 1.2–1.3 MIPS。
+- 表里是 `qemu/run.sh`（不让出 CPU，没有固件开机那 3 s 等待）。固件每跑 15 ms 睡 2 ms，fwsim 里 Windows 是 1.2–1.3 MIPS。
+- 加 `-mno-unaligned-access` 前后差不到 3%（250 MIPS 档 Windows 1.39 → 1.35）。
 - 含 SeaBIOS "Press ESC for boot menu" 固定等的约 2.5 s。
 - 解释器折合每条 x86 指令约 140–200 条 ARM 指令（含刷屏）。剖析（`qemu/profile.py`，按 QEMU 墙钟采样，有偏）：CPU 核约 70%，刷屏约 4%。
 - 真机标定：Monita 文档里设备上的 CPU 耗时只有"整屏 clean ≈ 1.3 ms"这类访存为主的数，标不了解释器的 IPC。
@@ -63,7 +67,7 @@ QEMU 看不到的：代码在内部 NOR 上 XIP 执行的取指延迟、cache �
 | 任务栈 | 16 KiB | QEMU 测到高水位不到 2 KiB |
 | app 窗口 .data + .bss | 约 5.5 KiB | 128 KiB 窗口里 |
 
-- 分配时要求拿完四大块后堆里还能再拿 `288 KiB + 256 KiB`（最差 `288 + 128 KiB`），不够就降一档，两档都不行就不启动客户机，只应答链路。
+- 分配时要求拿完四大块后堆里还能再拿 `288 KiB + 256 KiB`（给内核 / 基带的保底固定 256 KiB，没有更低的档），不够就降一档，两档都不行就不启动客户机，只应答链路。
 - 每档总占用（不含余量）不超过 4100 KiB，等于 Monita 三缓冲在机上稳定跑过的量（单测 `test_memplan` 查）。
 - fwsim 按 4.35 MB 的堆跑：第 0 档，分完四大块后最大块还剩 1722 KiB。
 
@@ -82,10 +86,12 @@ Win3.1 的盘有版权，要自己做，见 `docs/import-win31.md`；放到 `wor
 
 ## 固件
 
-- 单任务：开大屏 → 挂外挂 flash → 预检三个文件（能开、大小像样）→ 分内存 → 读 BIOS → 循环（收链路帧、跑客户机 15 ms、睡 2 ms、每秒喂狗）。客户机 HLT 时也睡 1 ms。
+- 单任务：开大屏 → 看 "−" 键（按住 = 安全模式）→ 等 3 s → 挂外挂 flash → 预检三个文件（能开、大小像样）→ 分内存 → 读 BIOS → 循环（收链路帧、跑客户机 15 ms、睡 2 ms、每秒喂狗）。客户机 HLT 时也睡 1 ms。
 - 盘和 BIOS 只从 `EFS:/monita/x86/{bios.bin, vgabios.bin, hda.img}` 用 `"rb"` 打开，一次最多读 4 KiB（extdump 实机验证过的长度）；客户机写盘只进内存覆盖层，复位（带清空）或断电就没了。
 - 导入里没有任何写文件 / 写 flash / 格式化接口（`validate.py --target x86` 和单测查）。
 - 起不来（挂不上 EFS、内存不够、BIOS / 盘打不开、tiny386 abort）：屏上打原因，停在应答循环里，`--stat` 能看到日志。
+- **逃生口**（同 monita-doom）：上电时按住前面板 "−"（右下键）= 安全模式：不挂外挂 flash、不启动客户机，只应答链路、照常喂狗。
+  正常开机也先等 3 s 再碰外挂 flash 和模拟器：万一后面崩了反复重启，刷机工具还有窗口。
 - 链路帧见 `docs/protocol-x86.md`。
 
 构建：`bash fw/build.sh`（要 Monita-CS80 仓库里的 `fw/sdk/r05_exports.csv`，默认路径 `~/code/Monita-CS80-lakala/`，可用 `R05_EXPORTS=` 指定）。
@@ -95,32 +101,60 @@ Win3.1 的盘有版权，要自己做，见 `docs/import-win31.md`；放到 `wor
 
 设备上只放一块盘：`win31.img` 改名成 `hda.img`（建空文件 `C:\NOWIN` 就停在 DOS 提示符）。EFS 空闲 14.02 MiB，放得下这块盘 + 两个 BIOS（约 6.1 MB），放不下再加 12 MB 的 FreeDOS 盘。
 
-1. 构建、自查：
+上机用的 BIOS（`scripts/fetch_bios.sh` 会自动核对）：
+`bios.bin` 9be3e26ccfbf9a1bcc0e4506962679ecbe9edf1bb9cad9b2e03ab735be35b5b2，`vgabios.bin` 276b090d8a0b617c5b91559a72079ce26829a22da12976059d7536fb21acdbf0。
+
+0. **刷机前先确认刷写机上有回滚用的文件**（第 5 步要用），并核对 sha256：
+   - `app_v12_tri_scale2.bin`（Monita fw v12，最新上过真机的一版）`1654d56e9c82364c4ab252b5c77a8a763be4ec41a34a95729786fe06431e10cf`
+   - 备选 `app_v11_lz4.bin`（fw v11，11-20 验收过）`bf4339971ddbb785b262a332b380794efaf7e582e16f8457ddd713dfc3b3239b`
+   - Mac 上的原件在私有工具目录 `cs80-backup/staged/`。不知道设备上现在是哪一版的话，以维护者自己的记录为准。
+1. 构建、自查（Mac）：
    ```
-   cd ~/code/monita-x86 && make test && bash qemu/fwsim.sh win31 && bash fw/build.sh
+   cd ~/code/monita-x86 && make test && bash qemu/fwsim.sh freedos && bash qemu/fwsim.sh win31 && bash fw/build.sh
+   shasum -a 256 build/fw/app_x86.bin work/bios.bin work/vgabios.bin work/win31.img
    ```
-2. 把三个文件写进 `EFS:/monita/x86/`：`work/bios.bin`、`work/vgabios.bin`、`work/win31.img`（改名 `hda.img`）。
-   **这一步的工具还没有**：要先刷 cs80-extflash 的 `extdump_v2.bin`，再用它的守卫写路径（`*.part` → rename，只在 `EFS:/monita/` 下）
-   上传；`extflash_v2.py` 现在没有 `put` 子命令，要补（见"还没做"）。
-3. 刷固件到 app 槽 `0x60270000`（维护者的刷写机上，用 win-flash 里自带的 python）：
+2. 刷 extdump v2 到 app 槽（刷写机，用 win-flash 里自带的 python）：
+   ```
+   py\python.exe dump_flash.py --restore extdump_v2.bin --addr 0x60270000
+   ```
+   `extdump_v2.bin` sha256 `16264e24428640ca4bd70fd33be2bdeff3b35246d6fad113a46221494344e04e`（`cs80-backup/staged/`）。
+3. **设备重新上电后马上**上传，中间别跑别的 extflash 命令（extdump v2 同一次上电第二次 INIT 会把挂载清掉，脚本只 INIT 一次；
+   报挂载失败就拔电重插再跑）。脚本只写 `EFS:/monita/x86/`，先整体算空间（写 `.part` 时新旧两份同时在），写完整个读回比 sha256：
+   ```
+   # 刷写机 (COM 口, 上次 extdump v2 走的这条):
+   set EXTFLASH_HOST=<cs80-extflash>\host
+   py\python.exe scripts\efs_put.py --port COM5 work\bios.bin work\vgabios.bin work\win31.img:hda.img
+   # 或 Mac (pyusb 直开接口 7, 没上机验证过; 先停 Monita 上位机, 见第 6 步):
+   EXTFLASH_HOST=~/code/CiderLLM/tools/cs80-extflash/host python3 -I scripts/efs_put.py --port usb \
+       work/bios.bin work/vgabios.bin work/win31.img:hda.img
+   ```
+   写约 183 KB/s、读回约 74 KB/s：6.1 MB 写 35 s 左右，读回一分半左右（`--no-verify` 不读回）。
+4. 刷 x86 固件：
    ```
    py\python.exe dump_flash.py --restore app_x86.bin --addr 0x60270000
    ```
-4. **先**在 Mac 上停掉 Monita 上位机（它占着接口 7，而且一连上就会朝设备推整帧），**再**把设备插到 Mac，然后开转发：
+   上电后屏上会依次出：标题、"hold - ... waiting 3 s"、EFS 挂载返回值、三个文件大小、分到哪一档和堆剩多少，然后进 SeaBIOS。
+   起不来就停在红字那一行；**要刷回去时如果它一上电就出问题，按住 "−" 上电进安全模式再刷**。
+5. 回滚：
+   ```
+   py\python.exe dump_flash.py --restore app_v12_tri_scale2.bin --addr 0x60270000
+   ```
+   EFS 里 `EFS:/monita/x86/` 的三个文件留着不碍事（原厂和 Monita 固件都不读这个目录）。
+6. 键盘鼠标（Mac）：**先**停掉 Monita 上位机（它占着接口 7，而且一连上就会朝设备推整帧），**再**把设备插到 Mac：
    ```
    launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.monita.cs80.plist
    python3 mac/x86kbd.py --stat          # 先看一眼状态
    python3 mac/x86kbd.py                 # 打字 / 鼠标; Ctrl+] q 退出
-   launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.monita.cs80.plist   # 用完恢复
+   launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.monita.cs80.plist   # 刷回日常固件后再恢复
    ```
-5. 回到日常固件：照常把已知良好的 Monita app 刷回 `0x60270000`。
 
-上机要看的：屏上开机几行（EFS 挂载返回值、三个文件的大小、分到哪一档、堆剩多少）；状态栏的 MIPS / fps；基带和 USB 是否稳（占空比 `YIELD_MS` 在 `fw/app_x86.c`）；看门狗会不会咬（fwsim 里最长 1.03 s 喂一次）。
+上机要看的：屏上开机几行；状态栏的 MIPS / fps；基带和 USB 是否稳（占空比 `YIELD_MS` 在 `fw/app_x86.c`）；看门狗会不会咬（fwsim 里最长 1.03 s 喂一次）；
+有没有因为非对齐访问之类直接重启（QEMU 里按严格对齐跑是干净的）。
 
 ## 还没做
 
 - 上真机：上面所有数字都是主机 / QEMU 上的。
-- EFS 上传工具：给 cs80-extflash 的 `extflash_v2.py` 加 `put`（mkdir `EFS:/monita/x86` → 写 `*.part` → rename），或者单独的小工具。
+- `scripts/efs_put.py` 只用假客户端单测过，没上过真机（底下的 `Client.put_file` 是 extflash 现成的，smoke 在真机上跑过同一条写路径）。
 - `mac/x86kbd.py` 的 pyusb 打开接口 7 没上过真机（Monita 的 Swift 上位机在同一个接口上是通的）。
 - SeaBIOS 自己编译的脚本（现在用 tiny386 release 的预编译版）；可以顺便把开机菜单等待的 2.5 s 去掉。
 - 速度：CPU 核占 70%，要快只能在解释器上下功夫（tiny386 上游的 fast 路径没导入）。

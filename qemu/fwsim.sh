@@ -2,6 +2,7 @@
 # fwsim: 真的固件代码 (fw/build.sh 编出的 .o, 去掉 loader 桩) + qemu/r05sim.c 假装的 29 个 R05 导入, 跑在 QEMU 里。不连设备。
 #   bash qemu/fwsim.sh freedos|win31 [秒数, 默认 20 / 40] [shift, 默认 2]
 #   SIM_MISSING=bios|vgabios|hda  假装 EFS 上缺这个文件 (固件应该停在应答循环里, 屏上打原因)
+#   SIM_SAFE=1                    假装上电时按住 "−" (安全模式: 不碰 EFS、不启动客户机)
 #   SIM_HEAP=<字节>               假堆大小 (默认 4.35 MB = Monita 实机测到的最大块)
 # 产物: build/fwsim/<场景>.log 和 .png。
 set -euo pipefail
@@ -14,8 +15,9 @@ O=build/fwsim; mkdir -p $O/o; rm -f $O/fwsim-fb.raw $O/qemu.pid
 $ARM_CC $ARM_CFLAGS $ARM_DEFS -Ifw/link -Wall -Wextra -Wno-unused-parameter -Wno-unused-function -Wno-misleading-indentation -Werror \
   -c qemu/r05sim.c -o $O/o/r05sim.o
 $ARM_CC -mcpu=cortex-a5 -c qemu/start.S -o $O/o/start.o
+$ARM_CC $ARM_CFLAGS -mno-unaligned-access -c qemu/qabort.c -o $O/o/qabort.o
 OBJS=$(ls build/fw/o/*.o | grep -v corestub)
-arm-none-eabi-ld -T qemu/fwsim.ld --gc-sections -o $O/fwsim.elf $OBJS $O/o/r05sim.o $O/o/start.o
+arm-none-eabi-ld -T qemu/fwsim.ld --gc-sections -o $O/fwsim.elf $OBJS $O/o/r05sim.o $O/o/start.o $O/o/qabort.o
 sz(){ stat -f %z "$1"; }
 ZB=$(sz work/bios.bin); ZV=$(sz work/vgabios.bin); ZH=$(sz $IMG)
 case ${SIM_MISSING:-} in bios) ZB=0;; vgabios) ZV=0;; hda) ZH=0;; esac      # 假装 EFS 上缺这个文件
@@ -31,7 +33,8 @@ LOG=$O/$SCEN.log
   -device loader,addr=0x40F0000c,data=$SH,data-len=4 \
   -device loader,addr=0x40F00010,data=$S,data-len=4 \
   -device loader,addr=0x40F00018,data=$SECS,data-len=4 \
-  -device loader,addr=0x40F00020,data=${SIM_HEAP:-0},data-len=4) > $LOG 2>&1 &
+  -device loader,addr=0x40F00020,data=${SIM_HEAP:-0},data-len=4 \
+  -device loader,addr=0x40F00024,data=${SIM_SAFE:-0},data-len=4) > $LOG 2>&1 &
 QP=$!
 trap '[ -f $O/qemu.pid ] && kill $(cat $O/qemu.pid) 2>/dev/null || true' EXIT
 T0=$(date +%s)

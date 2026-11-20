@@ -148,7 +148,7 @@ void qmain(void){
     size_t cur, peak; plat_alloc_stats(&cur, &peak);
     say("END %s: 虚拟 %u ms, 客户机 %u 条, ARM %u M 条; 栈高水位 %u B, 小块 %u B (峰值 %u)\n",
         hit ? "ok" : "TIMEOUT", (uint32_t)((t - t0) / 1000000u), s->insns_lo, marm(t - t0, sh),
-        (uint32_t)((uintptr_t)__stack_top - (uintptr_t)p), (uint32_t)cur, (uint32_t)peak);
+        (uint32_t)((uintptr_t)__stack_top - 0x1000u - (uintptr_t)p), (uint32_t)cur, (uint32_t)peak);
     dump_fb("qemu-fb.raw");
     struct { uint32_t r, c; } a = { 0x20026, hit ? 0u : 1u };   /* ADP_Stopped_ApplicationExit */
     semi(0x20, &a);

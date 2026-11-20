@@ -5,6 +5,8 @@ ql_pin_set_func
 ql_gpio_init
 ql_gpio_deinit
 ql_gpio_set_level
+# 逃生口: 上电时读 "−" 键
+ql_gpio_get_level
 ql_mipi_lcd_init
 ql_mipi_lcd_write_screen
 r05_lcd_pm_lock = 0xac3ae871

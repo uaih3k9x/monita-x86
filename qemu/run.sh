@@ -14,6 +14,7 @@ O=build/qemu; mkdir -p $O/o
 arm_objs $O/o
 $ARM_CC $ARM_CFLAGS $ARM_DEFS -Wall -Wextra -Wno-unused-parameter -Wno-misleading-indentation -Werror -c qemu/qplat.c -o $O/o/qplat.o
 $ARM_CC -mcpu=cortex-a5 -c qemu/start.S -o $O/o/start.o
+$ARM_CC $ARM_CFLAGS -mno-unaligned-access -c qemu/qabort.c -o $O/o/qabort.o
 arm-none-eabi-ld -T qemu/qemu.ld --gc-sections -o $O/x86q.elf $O/o/*.o
 arm-none-eabi-size $O/x86q.elf
 sz(){ stat -f %z "$1"; }

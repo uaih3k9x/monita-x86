@@ -1,6 +1,7 @@
 #!/bin/bash
 # monita-x86 固件: 编译 + 打包 2PPA + 静态校验。不连设备、不刷机。
 #   bash fw/build.sh            -> build/fw/app_x86.bin (写到 NOR 0x60270000 app 槽, 刷写由维护者亲手做, 见 README)
+# 编进固件的时间 (没有 HELLO 时的 CMOS 时钟) = 最后一次改代码的提交时间: 只改文档的提交不改变 bin 的 sha256。
 # 依赖: arm-none-eabi-gcc / binutils, python3; R05 导出表哈希 (原厂派生数据, 不在本仓库):
 #   R05_EXPORTS=<路径> 或默认 ~/code/Monita-CS80-lakala/fw/sdk/r05_exports.csv
 set -euo pipefail
@@ -13,7 +14,7 @@ arm_objs $O/o
 FWINC="-Ifw -Ifw/sdk -Ifw/lcd -Ifw/link -Icore"
 W="-Wall -Wextra -Wno-unused-parameter -Wno-sign-compare -Wno-misleading-indentation -Wno-unused-function -Werror"
 for f in fw/app_x86.c fw/x86_plat.c; do
-  $ARM_CC $ARM_CFLAGS $ARM_DEFS $FWINC $W -DMX_BUILD_EPOCH=$(git log -1 --format=%ct 2>/dev/null || date +%s)u -c $f -o $O/o/$(basename $f .c).o
+  $ARM_CC $ARM_CFLAGS $ARM_DEFS $FWINC $W -DMX_BUILD_EPOCH=$(git log -1 --format=%ct -- fw core vendor port scripts/armflags.sh 2>/dev/null || date +%s)u -c $f -o $O/o/$(basename $f .c).o
 done
 python3 -I fw/sdk/gen_stubs.py fw/app_x86.imports $O/corestub.S $O/hashes.txt
 $ARM_CC $ARM_CFLAGS -c $O/corestub.S -o $O/o/corestub.o

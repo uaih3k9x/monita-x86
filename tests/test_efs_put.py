@@ -65,6 +65,11 @@ class Flow(unittest.TestCase):
         c = FakeClient(free=6 * MiB)                                   # bios 放得下, hda 放不下
         with self.assertRaises(E.SpaceError): E.upload(c, self.files(), verify=False, out=lambda *a: None)
         self.assertFalse(any(x.startswith("put") for x in c.log))      # 先整体算, 一个都不写
+    def test_duplicate_target_rejected(self):
+        c = FakeClient(free=14 * MiB)
+        dup = [("a", b"A" * 1024, "EFS:/monita/x86/hda.img"), ("b", b"B" * 1024, "EFS:/monita/x86/hda.img")]
+        with self.assertRaises(ValueError): E.upload(c, dup, verify=False, out=lambda *a: None)
+        self.assertEqual(c.log, [])                                     # 连 HELLO 都不发
     def test_init_fail_tells_power_cycle(self):
         c = FakeClient(free=14 * MiB, init_fail=True)
         with self.assertRaises(E.DevError) as cm: E.upload(c, self.files(), verify=False, out=lambda *a: None)

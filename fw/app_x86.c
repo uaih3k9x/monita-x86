@@ -147,7 +147,6 @@ static void task_entry(void *arg){
     ql_uart_open(PORT);
     ql_uart_register_cb(PORT, uart_cb);
 
-    /* 同 extdump (实机两个都返回 0): init 结果不管都去 mount, 同次上电只挂一次。返回值只显示, 能不能用看下面三个文件开不开得了 */
     /* 逃生口: 只配 "−" 这一个键 (同 Monita keys_hw_init 的这一项: 另一个可选脚 121 先设 func1) */
     ql_pin_set_func(121, 1); ql_pin_set_func(13, 4);
     ql_gpio_deinit(KEY_GPIO_MINUS);
@@ -163,6 +162,7 @@ static void task_entry(void *arg){
         ql_rtos_semaphore_wait(g_sem, 20); link_drain(); housekeeping();
     }
 
+    /* 同 extdump (实机两个都返回 0): init 结果不管都去 mount, 同次上电只挂一次。返回值只显示, 能不能用看下面三个文件开不开得了 */
     int r1 = ql_spi6_ext_nor_flash_init();
     int r2 = ql_spi6_ext_nor_flash_sffs_mount();
     snprintf(line, sizeof line, "EFS: init %d mount %d", r1, r2);

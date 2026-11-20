@@ -55,6 +55,10 @@ def check_space(free, new_len):
 
 def upload(c, files, verify=True, out=print):
     """files: [(本地名, 数据, 设备路径)]。只 INIT 一次; 先整体算空间再写。"""
+    paths = [p for _, _, p in files]
+    dup = sorted({p for p in paths if paths.count(p) > 1})
+    if dup:
+        raise ValueError("同一个目标传了两次: %s" % ", ".join(dup))
     out("HELLO:", c.hello())
     try:
         out("INIT:", c.init())
@@ -108,7 +112,7 @@ def main():
     c = Client(L.Link(L.open_transport(a.port, a.baud), a.timeout))
     try:
         upload(c, files, verify=not a.no_verify)
-    except (SpaceError, DevError) as e:
+    except (SpaceError, DevError, ValueError) as e:
         sys.exit("停手: %s" % e)
 
 

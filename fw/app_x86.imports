@@ -1,0 +1,36 @@
+# monita-x86 固件 (app_x86.c) 的 R05 导入。validate.py 的 TARGET_IMPORT_ALLOW["x86"] 逐个点名放行。
+# 外挂 flash 只读: 没有 ql_fwrite / ql_mkdir / ql_rename / ql_remove / mkfs (validate.py ALWAYS_DENY 也拦)。
+# 大屏 (同 Monita app)
+ql_pin_set_func
+ql_gpio_init
+ql_gpio_deinit
+ql_gpio_set_level
+ql_mipi_lcd_init
+ql_mipi_lcd_write_screen
+r05_lcd_pm_lock = 0xac3ae871
+# 任务 / 信号量 / 看门狗 / 时间
+ql_rtos_task_create
+ql_rtos_task_sleep_ms
+ql_rtos_semaphore_create
+ql_rtos_semaphore_wait
+ql_rtos_semaphore_release
+ql_dev_cfg_wdt
+ql_dev_feed_wdt
+osiUpTimeUS
+# USB 链路 (port 4)
+ql_uart_open
+ql_uart_read
+ql_uart_write
+ql_uart_register_cb
+# 内核堆
+malloc
+free
+ql_dev_memory_size_query
+# 外挂 SPI6 NOR (EFS:) 只读: 挂载 + 读文件 (同 cs80-extflash extdump, 实机跑通过)
+ql_spi6_ext_nor_flash_init
+ql_spi6_ext_nor_flash_sffs_mount
+ql_fopen
+ql_fread
+ql_fseek
+ql_fclose
+ql_fsize

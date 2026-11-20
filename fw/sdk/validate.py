@@ -22,7 +22,8 @@ import struct, zlib, sys, csv, os, subprocess, hashlib
 
 BASE = 0x60270000
 HERE = os.path.dirname(os.path.abspath(__file__))
-CSV  = os.path.join(HERE, "r05_exports.csv")
+# R05 导出表哈希清单: 原厂固件派生数据, 不进本仓库; fw/build.sh 从 Monita-CS80 仓库指过来
+CSV  = os.environ.get("R05_EXPORTS", os.path.join(HERE, "r05_exports.csv"))
 ORIG = os.environ.get("R05_ORIG_APP")      # 可选: 原厂 app 容器 dump, 仓库里不带
 ORIG_APP_SIZE = 0xa09a0      # 原厂 app 大小; 之后 0x60320000 起是资源区
 
@@ -42,6 +43,18 @@ ALWAYS_DENY_NAMES = [
 ]
 # 逐个点名的导入白名单 (独立于 .imports 再写一遍): 名单外的任何导入一律 FAIL, 没解名的导出按哈希点名。
 TARGET_IMPORT_ALLOW = {
+    # monita-x86 固件 (fw/app_x86.c): 大屏 + USB 链路 + 外挂 flash 只读 (盘镜像 / BIOS)。没有任何写文件 / 写 flash 接口。
+    "x86": {
+        "ql_pin_set_func", "ql_gpio_init", "ql_gpio_deinit", "ql_gpio_set_level",
+        "ql_rtos_task_create", "ql_rtos_task_sleep_ms",
+        "ql_rtos_semaphore_create", "ql_rtos_semaphore_wait", "ql_rtos_semaphore_release",
+        "ql_dev_cfg_wdt", "ql_dev_feed_wdt", "osiUpTimeUS",
+        "ql_uart_open", "ql_uart_read", "ql_uart_write", "ql_uart_register_cb",
+        "ql_mipi_lcd_init", "ql_mipi_lcd_write_screen", 0xac3ae871,     # r05_lcd_pm_lock (名字未解出)
+        "malloc", "free", "ql_dev_memory_size_query",
+        "ql_spi6_ext_nor_flash_init", "ql_spi6_ext_nor_flash_sffs_mount",   # mount 内部传 0: 挂不上也不格式化
+        "ql_fopen", "ql_fread", "ql_fseek", "ql_fclose", "ql_fsize",
+    },
     "app": {
         "ql_pin_set_func", "ql_gpio_init", "ql_gpio_deinit", "ql_gpio_set_level", "ql_gpio_set_direction", "ql_gpio_get_level",
         "ql_delay_us", "ql_rtos_task_create", "ql_rtos_task_sleep_ms",

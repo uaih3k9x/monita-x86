@@ -1,6 +1,5 @@
 # 主机侧: 单测 + Mac host 版模拟器。固件在 fw/build.sh, QEMU 估速在 qemu/run.sh。
-#   make test        跑全部主机单测
-#   make fw-test     固件导入守卫 (python)
+#   make test        跑全部主机单测 (C + 固件导入守卫 python)
 #   make host        build/x86host (headless, 帧导出 PNG/PPM/TXT, 脚本注入键盘鼠标)
 CC      ?= cc
 B       := build
@@ -17,7 +16,7 @@ CORE    := core/mxalloc.c core/overlay.c core/rcache.c core/mxblk.c core/machine
 HOSTSRC := host/main.c host/host_plat.c host/imgout.c
 HDRS    := $(wildcard core/*.h port/*.h host/*.h $(V)/*.h)
 
-TESTS   := overlay rcache x86proto imgout kbdmap memplan aeabi dirty mxblk hostalloc civil mxlibc
+TESTS   := overlay rcache x86proto imgout kbdmap memplan aeabi dirty mxblk hostalloc civil mxlibc xdisp
 
 .PHONY: all test fw-test host clean
 all: test host
@@ -55,6 +54,7 @@ $(B)/test_%: tests/test_%.c $(HDRS)
 
 test: $(addprefix $(B)/test_,$(TESTS))
 	@set -e; for t in $(TESTS); do ./$(B)/test_$$t; done
+	@python3 -I fw/sdk/test_validate.py 2>&1 | tail -1
 
 # 固件导入守卫 (要 fw/app.imports)
 fw-test:

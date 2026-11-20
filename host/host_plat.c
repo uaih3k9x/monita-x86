@@ -33,6 +33,5 @@ int32_t plat_size(plat_file *f){
     return (int32_t)ftello(f->f);
 }
 void plat_close(plat_file *f){ fclose(f->f); free(f); }
-void plat_slice(void){ }
 void plat_sleep_us(uint32_t us){ usleep(us); }
 void plat_abort(void){ abort(); }

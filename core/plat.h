@@ -1,8 +1,8 @@
 /*
  * 平台抽象层: core/ 和 vendor/tiny386 只通过这几个函数碰平台。
  *   host/host_plat.c  Mac host 版 (POSIX)
- *   fw/x86_plat.c     固件 (R05 ql_* 导入; 文件只读, 只在 EFS:/monita/ 下)
- *   qemu/qplat.c      QEMU 粗估用的裸机版 (文件预先放进内存)
+ *   fw/x86_plat.c     固件 (R05 ql_* 导入; 文件只读, 只在 EFS:/monita/x86/ 下)
+ *   qemu/qplat.c      QEMU 估速用的裸机版 (文件预先放进内存)
  */
 #ifndef MX_PLAT_H
 #define MX_PLAT_H
@@ -30,7 +30,5 @@ void       plat_close(plat_file *f);
 void     plat_sleep_us(uint32_t us);        /* 客户机 HLT 时 (固件: 让出 CPU) */
 void     plat_abort(void);                  /* tiny386 内部错误: 停客户机, 不重启设备 */
 
-/* 模拟循环每个时间片调一次: 固件在这里让出 CPU / 喂狗 / 收链路帧, host 版什么都不做 */
-void plat_slice(void);
 
 #endif

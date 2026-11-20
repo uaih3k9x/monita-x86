@@ -37,7 +37,6 @@ static uint64_t now_ns(void){ return (cntvct() * g_mul >> 24) * 1000u; }
 uint32_t plat_now_us(void){ return (uint32_t)(cntvct() * g_mul >> 24); }
 uint32_t plat_time_utc(void){ return 1795132800u; }  /* 固定 2026-11-20 */
 void plat_sleep_us(uint32_t us){ (void)us; }         /* HLT: 空转 (虚拟时间照走) */
-void plat_slice(void){ }
 void plat_log(const char *m){ puts_("[x86] "); puts_(m); puts_("\n"); }
 void plat_abort(void){ puts_("ABORT\n"); struct { uint32_t r, c; } a = { 0x20026, 1 }; semi(0x20, &a); for (;;); }
 

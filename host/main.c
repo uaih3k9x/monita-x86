@@ -9,6 +9,7 @@
  *   run <ms>                   跑 ms 毫秒 (墙钟)
  *   until-text "<串>" <ms>      跑到文本屏出现这个串, 超时就失败 (退出码 1)
  *   expect-text "<串>"          现在的文本屏里必须有
+ *   until-mode <0|1|2> <ms>     跑到显示模式变成这个 (0 空白 1 文本 2 图形), 超时就失败
  *   type "<串>"                 按 ASCII 打字 (美式键盘, 大写自动按 Shift)
  *   key <名> [<名> ...]         组合键: 依次按下, 倒序松开 (名见 core/kbdmap.h: enter esc f1 up del ctrl alt ...)
  *   mouse <dx> <dy> [<按键>]    相对移动 (按键 bit0 左 bit1 右 bit2 中)
@@ -121,6 +122,12 @@ static int run_script(const char *path){
             int ok = 0;
             while (plat_now_us() - t0 < ms * 1000u){ mx_run(50000); if (text_has(s)){ ok = 1; break; } }
             printf("%s until-text \"%s\" (%u ms)\n", ok ? "ok  " : "FAIL", s, (plat_now_us() - t0) / 1000u);
+            if (!ok) rc = 1;
+        } else if (!strcmp(cmd, "until-mode")){
+            int m = atoi(arg(&p)); uint32_t ms = (uint32_t)atoi(arg(&p)), t0 = plat_now_us();
+            int ok = 0;
+            while (plat_now_us() - t0 < ms * 1000u){ mx_run(50000); if (mx_mode() == m){ ok = 1; break; } }
+            printf("%s until-mode %d (%u ms)\n", ok ? "ok  " : "FAIL", m, (plat_now_us() - t0) / 1000u);
             if (!ok) rc = 1;
         } else if (!strcmp(cmd, "expect-text")){
             char *s = arg(&p); int ok = text_has(s);

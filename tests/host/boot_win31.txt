@@ -1,0 +1,18 @@
+# host 版冒烟: win31.img (导入步骤见 docs/import-win31.md) -> FreeDOS -> WIN /S -> Program Manager -> 键盘开扫雷 -> 鼠标
+#   build/x86host -bios work/bios.bin -vgabios work/vgabios.bin -hda work/win31.img -mem 2M -script tests/host/boot_win31.txt
+until-text "Booting from Hard Disk" 30000
+until-mode 2 120000
+log "进了图形模式, 等 Program Manager 画完"
+run 20000
+snap build/shots/w31-01-progman.png
+key alt f
+key r
+run 2000
+type "winmine\n"
+run 8000
+snap build/shots/w31-02-winmine.png
+mouse 40 30
+mouse 40 30
+run 1000
+snap build/shots/w31-03-mouse.png
+stats

@@ -107,15 +107,34 @@ Win3.1 的盘有版权，要自己做，见 `docs/import-win31.md`；放到 `wor
 0. **刷机前先确认刷写机上有回滚用的文件**（第 5 步要用），并核对 sha256：
    - `app_v12_tri_scale2.bin`（Monita fw v12，最新上过真机的一版）`1654d56e9c82364c4ab252b5c77a8a763be4ec41a34a95729786fe06431e10cf`
    - 备选 `app_v11_lz4.bin`（fw v11，11-20 验收过）`bf4339971ddbb785b262a332b380794efaf7e582e16f8457ddd713dfc3b3239b`
-   - Mac 上的原件在私有工具目录 `cs80-backup/staged/`。不知道设备上现在是哪一版的话，以维护者自己的记录为准。
+   - 刷写机上放在 `..\dumps\`（`certutil -hashfile ..\dumps\app_v12_tri_scale2.bin SHA256` 核对）；Mac 上的原件在私有工具目录 `cs80-backup/staged/`。不知道设备上现在是哪一版的话，以维护者自己的记录为准。
 1. 构建、自查（Mac）：
    ```
    cd ~/code/monita-x86 && make test && bash qemu/fwsim.sh freedos && bash qemu/fwsim.sh win31 && bash fw/build.sh
    shasum -a 256 build/fw/app_x86.bin work/bios.bin work/vgabios.bin work/win31.img
    ```
+1.5 **把文件拷到刷写机上并核对**（拷完再做第 2 步）：
+   - 本仓库的 `scripts\efs_put.py`，cs80-extflash 工具的 `host\` 整个目录（`EXTFLASH_HOST` 指向它）；
+   - `work\` 下的三个文件：`bios.bin`、`vgabios.bin`、`win31.img`；
+   - `extdump_v2.bin`、`build\fw\app_x86.bin`（放 `..\dumps\`，和回滚文件放一起）。
+
+   每个都在刷写机上算一遍 sha256，跟第 1 步 `shasum` 打出来的值对一遍：
+   ```
+   certutil -hashfile ..\dumps\app_x86.bin SHA256
+   certutil -hashfile ..\dumps\extdump_v2.bin SHA256
+   certutil -hashfile work\bios.bin SHA256
+   certutil -hashfile work\vgabios.bin SHA256
+   certutil -hashfile work\win31.img SHA256
+   ```
+   - `app_x86.bin` 应为 `c4011913982f53ce57325ec8f50f131671af157102ab919ae29ec5e85743630f`（提交 865367b 构建，183,488 B；
+     只改文档的提交不改变它，改了代码就以第 1 步重新打出来的为准）
+   - `extdump_v2.bin` 应为 `16264e24428640ca4bd70fd33be2bdeff3b35246d6fad113a46221494344e04e`
+   - `bios.bin` / `vgabios.bin` 见本节开头；`win31.img` 是维护者自己做的盘，以第 1 步打出来的为准
+
+   **对不上或者文件不在，就别往下做。**
 2. 刷 extdump v2 到 app 槽（刷写机，用 win-flash 里自带的 python）：
    ```
-   py\python.exe dump_flash.py --restore extdump_v2.bin --addr 0x60270000
+   py\python.exe dump_flash.py --restore ..\dumps\extdump_v2.bin --addr 0x60270000
    ```
    `extdump_v2.bin` sha256 `16264e24428640ca4bd70fd33be2bdeff3b35246d6fad113a46221494344e04e`（`cs80-backup/staged/`）。
 3. **设备重新上电后马上**上传，中间别跑别的 extflash 命令（extdump v2 同一次上电第二次 INIT 会把挂载清掉，脚本只 INIT 一次；
@@ -131,13 +150,13 @@ Win3.1 的盘有版权，要自己做，见 `docs/import-win31.md`；放到 `wor
    写约 183 KB/s、读回约 74 KB/s：6.1 MB 写 35 s 左右，读回一分半左右（`--no-verify` 不读回）。
 4. 刷 x86 固件：
    ```
-   py\python.exe dump_flash.py --restore app_x86.bin --addr 0x60270000
+   py\python.exe dump_flash.py --restore ..\dumps\app_x86.bin --addr 0x60270000
    ```
    上电后屏上会依次出：标题、"hold - ... waiting 3 s"、EFS 挂载返回值、三个文件大小、分到哪一档和堆剩多少，然后进 SeaBIOS。
    起不来就停在红字那一行；**要刷回去时如果它一上电就出问题，按住 "−" 上电进安全模式再刷**。
 5. 回滚：
    ```
-   py\python.exe dump_flash.py --restore app_v12_tri_scale2.bin --addr 0x60270000
+   py\python.exe dump_flash.py --restore ..\dumps\app_v12_tri_scale2.bin --addr 0x60270000
    ```
    EFS 里 `EFS:/monita/x86/` 的三个文件留着不碍事（原厂和 Monita 固件都不读这个目录）。
 6. 键盘鼠标（Mac）：**先**停掉 Monita 上位机（它占着接口 7，而且一连上就会朝设备推整帧），**再**把设备插到 Mac：

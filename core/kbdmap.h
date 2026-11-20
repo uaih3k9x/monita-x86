@@ -1,6 +1,6 @@
 /*
  * ASCII / 键名 -> PC set-1 扫描码 (美式键盘)。主机脚本注入用 (host/main.c 的 type / key 命令);
- * Mac 端的 macOS keyCode 映射在 mac/Sources/X86Core/Keymap.swift (同一套扫描码)。纯逻辑, 单测 tests/test_kbdmap.c。
+ * Mac 端转发工具 mac/x86kbd.py 用同一套扫描码 (已对拍过全部可打印字符)。纯逻辑, 单测 tests/test_kbdmap.c。
  * 返回值: 低 8 位扫描码, KM_SHIFT = 需要按着 Shift, KM_E0 = E0 扩展键; 0 = 不认识。
  */
 #ifndef MX_KBDMAP_H

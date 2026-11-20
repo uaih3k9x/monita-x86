@@ -28,7 +28,7 @@ int main(void){
     CHECK(mx_strlen("") == 0 && mx_strlen("abc") == 3);
     CHECK(mx_strcmp("abc", "abc") == 0 && mx_strcmp("abc", "abd") < 0 && mx_strcmp("b", "abc") > 0 && mx_strcmp("ab", "abc") < 0);
     CHECK(!strcmp(mx_strcpy(buf, "hello"), "hello"));
-    CHECK(mx_atoi("42") == 42 && mx_atoi("-17") == -17 && mx_atoi("  9x") == 9);
+    CHECK(mx_atoi("42") == 42 && mx_atoi("-17") == -17 && mx_atoi("  7z") == 7);
 #define SN(...) do { int r1 = mx_snprintf(buf, sizeof buf, __VA_ARGS__), r2 = snprintf(ref, sizeof ref, __VA_ARGS__); \
                      CHECK(r1 == r2 && !strcmp(buf, ref)); if (strcmp(buf, ref)) printf("  [%s] vs [%s]\n", buf, ref); } while (0)
     SN("plain");

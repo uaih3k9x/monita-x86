@@ -134,6 +134,7 @@ static void task_entry(void *arg){
     ql_rtos_task_sleep_ms(200);
     if (lcd_err == 0) lcd_backlight(1);
     say(C_FG, "monita-x86: tiny386 on CS80");
+    ql_dev_feed_wdt();                                  /* 开机这一串 (清屏 / 挂载 / 分内存 / 读 BIOS) 中间都喂一下 */
 
     lk_init(&g_p, g_pl, XD_MAX_PAYLOAD);
     g_xd.in = mx_input(); g_xd.reply = reply; g_xd.ctrl = ctrl; g_xd.stat = stat; g_xd.time = htime;
@@ -147,6 +148,7 @@ static void task_entry(void *arg){
     say(r2 == 0 ? C_FG : C_ERR, line);
     if (r2 != 0){ plat_log("EFS mount failed"); x86fw_dead(); }
 
+    ql_dev_feed_wdt();
     mp_ops_t ops = { k_alloc, k_free, 0 };
     uint32_t ov_extra = 4096u;                          /* 覆盖层稀疏表 (同 host 版) */
     if (mp_alloc(&ops, ov_extra, &g_plan) != 0){ plat_log("not enough heap"); x86fw_dead(); }
@@ -166,6 +168,7 @@ static void task_entry(void *arg){
     c.ov_mem = g_plan.ov; c.ov_len = g_plan.ov_size;
     c.rc_mem = g_plan.rc; c.rc_blocks = g_plan.rc_size / 4096u;
     c.fb = (uint16_t *)FB_ADDR; c.clean = clean_cb; c.decor = 1;
+    ql_dev_feed_wdt();
     if (mx_init(&c) != 0){ plat_log("mx_init failed (bios / hda?)"); x86fw_dead(); }
     g_booted = 1;
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 # monita-x86 固件: 编译 + 打包 2PPA + 静态校验。不连设备、不刷机。
-#   bash fw/build.sh            -> build/fw/app_x86.bin (写到 NOR 0x60270000 app 槽, 刷写由 9x 亲手做, 见 README)
+#   bash fw/build.sh            -> build/fw/app_x86.bin (写到 NOR 0x60270000 app 槽, 刷写由维护者亲手做, 见 README)
 # 依赖: arm-none-eabi-gcc / binutils, python3; R05 导出表哈希 (原厂派生数据, 不在本仓库):
 #   R05_EXPORTS=<路径> 或默认 ~/code/Monita-CS80-lakala/fw/sdk/r05_exports.csv
 set -euo pipefail

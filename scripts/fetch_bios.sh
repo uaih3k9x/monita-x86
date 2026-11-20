@@ -1,5 +1,5 @@
 #!/bin/bash
-# 取 tiny386 release 里预编译的 SeaBIOS / SeaVGABIOS (LGPL-3.0, 源码见 scripts/build_seabios.sh 的出处说明) 到 work/。
+# 取 tiny386 release 里预编译的 SeaBIOS / SeaVGABIOS (LGPL-3.0; 源码 = SeaBIOS 上游 28aa4634 + tiny386 仓库 seabios/ 下的 config 和 patch, 见 THIRD_PARTY.md) 到 work/。
 #   bash scripts/fetch_bios.sh
 # release 名叫 continuous, 会被上游覆盖, 所以 sha256 钉不住: 这里只打印, 维护者自己记一份上机用的。
 # 本仓库验证用的那份 (2026-11-18 构建, SeaBIOS rel-1.17.0-24-g28aa4634):

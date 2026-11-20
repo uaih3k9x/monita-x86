@@ -1,6 +1,6 @@
 /*
  * 一台 PC: tiny386 的 pc.c 加我们的平台层胶水 (HAL: get_uticks / bigmalloc / pcmalloc / load_rom)。
- * host 版 (host/main.c)、固件 (fw/app_x86.c)、QEMU 粗估 (qemu/qmain.c) 共用这一份。
+ * host 版 (host/main.c)、固件 (fw/app_x86.c)、QEMU 估速 (qemu/qplat.c) 共用这一份。
  *
  * 设备参数 (和固件一致): 386 (gen 3) 无 FPU, BPP=16 + VGA_STORE_CHANGED, 帧缓冲 800x1280 RGB565 行跨 1600,
  *   640x480 落在 (80, 400), 文本 720x400 落在 (40, 440)。上下空出来的地方画机箱面板 / 状态栏 (decor.c)。

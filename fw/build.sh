@@ -13,7 +13,7 @@ arm_objs $O/o
 FWINC="-Ifw -Ifw/sdk -Ifw/lcd -Ifw/link -Icore"
 W="-Wall -Wextra -Wno-unused-parameter -Wno-sign-compare -Wno-misleading-indentation -Wno-unused-function -Werror"
 for f in fw/app_x86.c fw/x86_plat.c; do
-  $ARM_CC $ARM_CFLAGS $ARM_DEFS $FWINC $W -DMX_BUILD_EPOCH=$(date +%s)u -c $f -o $O/o/$(basename $f .c).o
+  $ARM_CC $ARM_CFLAGS $ARM_DEFS $FWINC $W -DMX_BUILD_EPOCH=$(git log -1 --format=%ct 2>/dev/null || date +%s)u -c $f -o $O/o/$(basename $f .c).o
 done
 python3 -I fw/sdk/gen_stubs.py fw/app_x86.imports $O/corestub.S $O/hashes.txt
 $ARM_CC $ARM_CFLAGS -c $O/corestub.S -o $O/o/corestub.o

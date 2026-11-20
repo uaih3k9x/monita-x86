@@ -54,13 +54,17 @@ int ql_spi6_ext_nor_flash_init(void){ return 0; }
 int ql_spi6_ext_nor_flash_sffs_mount(void){ if (mounted){ say("SIM: 第二次 mount (实机会返回错误)\n"); g_bad_fs++; } mounted = 1; return 0; }
 int ql_fopen(const char *path, const char *mode){
     if (strcmp(mode, "rb")){ say("SIM: fopen 模式不是 rb: %s\n", mode); g_bad_fs++; return -1; }
-    for (int i = 0; i < 3; i++) if (!strcmp(path, files[i].path)){ g_pos[i + 1] = 0; return i + 1; }
+    for (int i = 0; i < 3; i++) if (!strcmp(path, files[i].path)){
+        if (!SIZES[i]) return -1;                         /* SIM_MISSING: 假装文件不在 */
+        g_pos[i + 1] = 0; return i + 1;
+    }
     say("SIM: fopen 不认识的路径 %s\n", path); g_bad_fs++; return -1;
 }
 int ql_fsize(int fd){ return (int)SIZES[fd - 1]; }
 int ql_fseek(int fd, int32_t off, int32_t wh){ if (wh != 0 || (uint32_t)off > SIZES[fd - 1]) return -1; g_pos[fd] = (uint32_t)off; return 0; }
 int ql_fread(void *buf, uint32_t size, uint32_t count, int fd){
     uint32_t n = size * count, sz = SIZES[fd - 1];
+    if (n > 4096u){ say("SIM: fread 一次 %u 字节 (实机只验证过 <= 4096)\n", n); g_bad_fs++; }
     if (g_pos[fd] >= sz) return 0;
     if (n > sz - g_pos[fd]) n = sz - g_pos[fd];
     memcpy(buf, (const uint8_t *)files[fd - 1].at + g_pos[fd], n);

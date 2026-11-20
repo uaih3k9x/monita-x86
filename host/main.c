@@ -10,6 +10,8 @@
  *   until-text "<串>" <ms>      跑到文本屏出现这个串, 超时就失败 (退出码 1)
  *   expect-text "<串>"          现在的文本屏里必须有
  *   until-mode <0|1|2> <ms>     跑到显示模式变成这个 (0 空白 1 文本 2 图形), 超时就失败
+ *   expect-clean                再跑一个刷屏周期, 然后影子缓冲 (只收 clean 回调报过的字节, 同固件的 D-cache clean)
+ *                               必须和帧缓冲逐字节相同; 不同 = 有像素改了没报脏区, 设备上会留残影
  *   type "<串>"                 按 ASCII 打字 (美式键盘, 大写自动按 Shift)
  *   key <名> [<名> ...]         组合键: 依次按下, 倒序松开 (名见 core/kbdmap.h: enter esc f1 up del ctrl alt ...)
  *   mouse <dx> <dy> [<按键>]    相对移动 (按键 bit0 左 bit1 右 bit2 中)
@@ -29,6 +31,12 @@
 #include <string.h>
 
 static uint16_t g_fb[MX_FB_W * MX_FB_H];
+static uint16_t g_shadow[MX_FB_W * MX_FB_H];     /* 设备上 LCD 真正看到的: 只有 clean 过的字节 */
+static void shadow_clean(void *ctx, uintptr_t a, uint32_t n){
+    (void)ctx;
+    uintptr_t off = a - (uintptr_t)g_fb;
+    memcpy((uint8_t *)g_shadow + off, (const uint8_t *)g_fb + off, n);
+}
 static int g_quiet;
 
 static uint32_t parse_size(const char *s){
@@ -129,6 +137,12 @@ static int run_script(const char *path){
             while (plat_now_us() - t0 < ms * 1000u){ mx_run(50000); if (mx_mode() == m){ ok = 1; break; } }
             printf("%s until-mode %d (%u ms)\n", ok ? "ok  " : "FAIL", m, (plat_now_us() - t0) / 1000u);
             if (!ok) rc = 1;
+        } else if (!strcmp(cmd, "expect-clean")){
+            mx_run(80000);                                       /* 至少一个刷屏周期 (33 ms), 不强制刷新 */
+            uint32_t bad = 0, first = 0;
+            for (uint32_t i = 0; i < MX_FB_W * MX_FB_H; i++) if (g_fb[i] != g_shadow[i]){ if (!bad) first = i; bad++; }
+            printf("%s expect-clean (%u 个像素没 clean%s", bad ? "FAIL" : "ok  ", bad, bad ? "" : ")\n");
+            if (bad){ printf(", 第一个在 x %u y %u)\n", first % MX_FB_W, first / MX_FB_W); rc = 1; }
         } else if (!strcmp(cmd, "expect-text")){
             char *s = arg(&p); int ok = text_has(s);
             printf("%s expect-text \"%s\"\n", ok ? "ok  " : "FAIL", s);
@@ -188,7 +202,7 @@ int main(int argc, char **argv){
         else { fprintf(stderr, "用法见 host/main.c 文件头\n"); return 2; }
     }
     if (!c.hda){ fprintf(stderr, "要 -hda\n"); return 2; }
-    c.fb = g_fb;
+    c.fb = g_fb; c.clean = shadow_clean;
     c.mem = calloc(1, c.mem_size); c.vga = calloc(1, c.vga_size);   /* 同固件: 大块事先拿好, plat_alloc 只记小块 */
     c.ov_len = ov_kib * 1024u + 4096u;            /* 池 + 稀疏表 (同固件: memplan 的 extra_ov) */
     c.ov_mem = ov_kib ? malloc(c.ov_len) : NULL;

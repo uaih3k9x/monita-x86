@@ -56,14 +56,21 @@ plat_file *plat_open_ro(const char *name){
     g_files[i].fd = fd; g_files[i].size = ql_fsize(fd); g_files[i].pos = 0;
     return &g_files[i];
 }
+/* 一次最多读 4 KiB (extdump 实机只验证过这个长度), 循环读满; 返回读到的总字节数, 一开始就失败返回 -1 */
 int plat_read_at(plat_file *f, uint32_t off, void *buf, uint32_t n){
     if (f->pos != off){
         if (ql_fseek(f->fd, (int32_t)off, QL_SEEK_SET) != 0){ f->pos = 0xffffffffu; return -1; }
         f->pos = off;
     }
-    int r = ql_fread(buf, 1, n, f->fd);
-    f->pos = r > 0 ? off + (uint32_t)r : 0xffffffffu;
-    return r;
+    uint32_t got = 0;
+    while (got < n){
+        uint32_t k = n - got > 4096u ? 4096u : n - got;
+        int r = ql_fread((uint8_t *)buf + got, 1, k, f->fd);
+        if (r <= 0){ f->pos = 0xffffffffu; return got ? (int)got : -1; }
+        got += (uint32_t)r; f->pos += (uint32_t)r;
+        if ((uint32_t)r < k) break;
+    }
+    return (int)got;
 }
 int32_t plat_size(plat_file *f){ return f->size; }
 void plat_close(plat_file *f){ ql_fclose(f->fd); f->fd = 0; }

@@ -142,11 +142,21 @@ static void task_entry(void *arg){
     ql_uart_open(PORT);
     ql_uart_register_cb(PORT, uart_cb);
 
+    /* 同 extdump (实机两个都返回 0): init 结果不管都去 mount, 同次上电只挂一次。返回值只显示, 能不能用看下面三个文件开不开得了 */
     int r1 = ql_spi6_ext_nor_flash_init();
-    int r2 = r1 == 0 ? ql_spi6_ext_nor_flash_sffs_mount() : -1;    /* 同次上电只挂一次 */
+    int r2 = ql_spi6_ext_nor_flash_sffs_mount();
     snprintf(line, sizeof line, "EFS: init %d mount %d", r1, r2);
-    say(r2 == 0 ? C_FG : C_ERR, line);
-    if (r2 != 0){ plat_log("EFS mount failed"); x86fw_dead(); }
+    say(r1 == 0 && r2 == 0 ? C_FG : C_ERR, line);
+    static const char *const need[3] = { "bios.bin", "vgabios.bin", "hda.img" };
+    for (int i = 0; i < 3; i++){
+        plat_file *f = plat_open_ro(need[i]);
+        int32_t sz = f ? plat_size(f) : -1;
+        if (f) plat_close(f);
+        snprintf(line, sizeof line, "EFS:/monita/x86/%s: %d B", need[i], (int)sz);
+        int ok = i == 0 ? sz == 131072 : i == 1 ? sz > 0 && sz <= 65536 : sz >= 512 * 1024 && (sz & 511) == 0;
+        say(ok ? C_FG : C_ERR, line);
+        if (!ok){ snprintf(x86fw_last_log, sizeof x86fw_last_log, "bad %s (%d B)", need[i], (int)sz); x86fw_dead(); }
+    }
 
     ql_dev_feed_wdt();
     mp_ops_t ops = { k_alloc, k_free, 0 };

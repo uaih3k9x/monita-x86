@@ -19,10 +19,11 @@ tests/     主机单测 (C + python)、客户机自测程序、主机版脚本
 
 | 项目 | 结果 |
 |---|---|
-| 主机版 FreeDOS | 过：SeaBIOS → FreeDOS → HIMEMX/XMS → PMTEST（286 保护模式自测）→ VGA 12h/13h，2 MB 和 1.5 MB 都过 |
-| 主机版 Win3.1 | 过：2 MB 和 1.5 MB 都进 Program Manager；键盘开扫雷、PS/2 鼠标能动 |
+| 主机版 FreeDOS | 过：SeaBIOS → FreeDOS → HIMEMX/XMS → PMTEST（286 保护模式自测）→ VGA 12h/13h，2 MB 和 1.5 MB 都过；硬复位、硬复位 + 清覆盖层、Ctrl+Alt+Del 后都回到提示符，XMS 还在 |
+| 主机版 Win3.1 | 过：2 MB 和 1.5 MB 都进 Program Manager；键盘开扫雷、PS/2 鼠标能动；硬复位和 Ctrl+Alt+Del 后都重新进 Windows |
+| 脏区 | 两个脚本里多处 `expect-clean`：影子缓冲只收 clean 回调报过的字节，和帧缓冲逐字节相同（故意少报一行文字时能抓到） |
 | QEMU（ARM，和固件同一批 .o） | FreeDOS 到提示符、Win3.1 到 Program Manager 都过 |
-| fwsim（真固件代码 + 假 R05 导入） | FreeDOS 收到键盘帧敲 `ver`、Win3.1 进 Program Manager 收到鼠标帧，都过 |
+| fwsim（真固件代码 + 假 R05 导入） | FreeDOS 收到键盘帧敲 `ver`、Win3.1 进 Program Manager 收到鼠标帧，都过；缺 `bios.bin` / `hda.img` 时屏上打原因、停在应答循环里，STAT 带回原因 |
 | 固件构建 | `fw/build.sh`：181,568 B，29 个导入全在 x86 白名单里，没有 VFP/NEON，静态校验 PASS |
 | 真机 | **没上过**。速度、XIP 代码执行、外挂 flash 读、看门狗、基带共存都要上机才知道 |
 
@@ -37,11 +38,14 @@ QEMU 看不到的：代码在内部 NOR 上 XIP 执行的取指延迟、cache �
 | 假设的有效速度 | FreeDOS 到 `C:\>` | Win3.1 进图形模式 | Program Manager 画完 | Windows 里客户机速度 |
 |---|---|---|---|---|
 | 500 MIPS（IPC 1.0，上限） | 6.2 s | 6.3 s | — | — |
-| 250 MIPS（IPC 0.5） | 8.0 s | 8.8 s | 12–15 s | 约 1.4 MIPS |
-| 125 MIPS（IPC 0.25） | 11.4 s | 13.2 s | 23 s 以后 | 约 0.7 MIPS |
+| 250 MIPS（IPC 0.5） | 8.0 s | 8.8 s | 12–15 s | 1.39 MIPS（fwsim 带让出 CPU：1.2–1.3） |
+| 125 MIPS（IPC 0.25） | 11.4 s | 13.2 s | 23 s 以后（截图停在没画完的画面） | 0.65 MIPS |
 
+- 表里是 `qemu/run.sh`（不让出 CPU）。固件每跑 15 ms 睡 2 ms，fwsim 里 Windows 是 1.2–1.3 MIPS。
 - 含 SeaBIOS "Press ESC for boot menu" 固定等的约 2.5 s。
-- 解释器折合每条 x86 指令约 140–200 条 ARM 指令（含刷屏）。剖析（`qemu/profile.py`）：CPU 核约 70%，刷屏约 4%。
+- 解释器折合每条 x86 指令约 140–200 条 ARM 指令（含刷屏）。剖析（`qemu/profile.py`，按 QEMU 墙钟采样，有偏）：CPU 核约 70%，刷屏约 4%。
+- 真机标定：Monita 文档里设备上的 CPU 耗时只有"整屏 clean ≈ 1.3 ms"这类访存为主的数，标不了解释器的 IPC。
+  IPC 是未知数；解释器热代码 100 KB 以上，在内部 NOR 上 XIP 执行，客户机内存在 PSRAM，这是头号不确定项。
 - 主机版在这台 Mac 上约 140 MIPS，只用来调功能，不代表设备。
 - 复现：`bash qemu/run.sh freedos 2`、`bash qemu/run.sh win31 2 15`（日志和截图在 `build/qemu/`）。
 
@@ -78,8 +82,8 @@ Win3.1 的盘有版权，要自己做，见 `docs/import-win31.md`；放到 `wor
 
 ## 固件
 
-- 单任务：开大屏 → 挂外挂 flash → 分内存 → 读 BIOS → 循环（收链路帧、跑客户机 15 ms、睡 2 ms、每秒喂狗）。客户机 HLT 时也睡 1 ms。
-- 盘和 BIOS 只从 `EFS:/monita/x86/{bios.bin, vgabios.bin, hda.img}` 用 `"rb"` 打开；客户机写盘只进内存覆盖层，复位（带清空）或断电就没了。
+- 单任务：开大屏 → 挂外挂 flash → 预检三个文件（能开、大小像样）→ 分内存 → 读 BIOS → 循环（收链路帧、跑客户机 15 ms、睡 2 ms、每秒喂狗）。客户机 HLT 时也睡 1 ms。
+- 盘和 BIOS 只从 `EFS:/monita/x86/{bios.bin, vgabios.bin, hda.img}` 用 `"rb"` 打开，一次最多读 4 KiB（extdump 实机验证过的长度）；客户机写盘只进内存覆盖层，复位（带清空）或断电就没了。
 - 导入里没有任何写文件 / 写 flash / 格式化接口（`validate.py --target x86` 和单测查）。
 - 起不来（挂不上 EFS、内存不够、BIOS / 盘打不开、tiny386 abort）：屏上打原因，停在应答循环里，`--stat` 能看到日志。
 - 链路帧见 `docs/protocol-x86.md`。
@@ -102,7 +106,7 @@ Win3.1 的盘有版权，要自己做，见 `docs/import-win31.md`；放到 `wor
    ```
    py\python.exe dump_flash.py --restore app_x86.bin --addr 0x60270000
    ```
-4. Mac 上停掉占着接口 7 的 Monita 上位机，再开转发：
+4. **先**在 Mac 上停掉 Monita 上位机（它占着接口 7，而且一连上就会朝设备推整帧），**再**把设备插到 Mac，然后开转发：
    ```
    launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.monita.cs80.plist
    python3 mac/x86kbd.py --stat          # 先看一眼状态
@@ -111,7 +115,7 @@ Win3.1 的盘有版权，要自己做，见 `docs/import-win31.md`；放到 `wor
    ```
 5. 回到日常固件：照常把已知良好的 Monita app 刷回 `0x60270000`。
 
-上机要看的：屏上开机几行（EFS 挂载返回值、分到哪一档、堆剩多少）；状态栏的 MIPS / fps；基带和 USB 是否稳（占空比 `YIELD_MS` 在 `fw/app_x86.c`）；看门狗会不会咬（fwsim 里最长 1.03 s 喂一次）。
+上机要看的：屏上开机几行（EFS 挂载返回值、三个文件的大小、分到哪一档、堆剩多少）；状态栏的 MIPS / fps；基带和 USB 是否稳（占空比 `YIELD_MS` 在 `fw/app_x86.c`）；看门狗会不会咬（fwsim 里最长 1.03 s 喂一次）。
 
 ## 还没做
 
@@ -121,3 +125,5 @@ Win3.1 的盘有版权，要自己做，见 `docs/import-win31.md`；放到 `wor
 - SeaBIOS 自己编译的脚本（现在用 tiny386 release 的预编译版）；可以顺便把开机菜单等待的 2.5 s 去掉。
 - 速度：CPU 核占 70%，要快只能在解释器上下功夫（tiny386 上游的 fast 路径没导入）。
 - Windows 里的 MS-DOS Prompt 已知会坏；声音没有（PC 喇叭没接）。
+- 硬复位（PC_CTRL 1）不清客户机内存（tiny386 的复位只重载 BIOS、复位 CPU）。现有两块盘测过都没问题；盘里加了 `DOS=HIGH` + Windows 的 HIMEM 时可能出 VDISK 那个问题，到时候在 `mx_ctrl` 里复位前清内存。
+- fwsim 不是 R05 内核的模拟：时序、USB、外挂 flash 都是假的，只用来跑通固件胶水。

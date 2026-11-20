@@ -4,15 +4,32 @@ until-text "Booting from Hard Disk" 30000
 until-mode 2 120000
 log "进了图形模式, 等 Program Manager 画完"
 run 20000
+expect-clean
 snap build/shots/w31-01-progman.png
 key alt f
 key r
 run 2000
 type "winmine\n"
 run 8000
+expect-clean
 snap build/shots/w31-02-winmine.png
 mouse 40 30
 mouse 40 30
 run 1000
+expect-clean
 snap build/shots/w31-03-mouse.png
+stats
+# 复位: 硬复位后要重新进 Windows; Ctrl+Alt+Del (客户机热复位) 也要能回来
+ctrl 1
+until-mode 1 20000
+until-mode 2 120000
+run 20000
+expect-clean
+snap build/shots/w31-04-after-reset.png
+ctrl 2
+until-text "Booting from Hard Disk" 30000
+until-mode 2 120000
+run 20000
+expect-clean
+snap build/shots/w31-05-after-cad.png
 stats

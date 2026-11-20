@@ -1,0 +1,20 @@
+# 不提交：盘镜像、固件 / BIOS 二进制、dump（版权 / 原厂文件）
+*.img
+*.bin
+*.dump
+*.iso
+*.zip
+*.vmdk
+# 构建产物
+build/
+*.o
+*.elf
+*.dylib
+.build/
+*.ppm
+*.png
+# 下载 / 本地工作目录（脚本自动建）
+work/
+# 本地脱敏词表（检查时临时拷进来）
+.public-safe.local
+.DS_Store

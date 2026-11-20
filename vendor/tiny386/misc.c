@@ -8,7 +8,7 @@
 #include <stdio.h>
 
 #ifndef BUILD_ESP32
-#if !defined(_WIN32) && !defined(__wasm__)
+#if !defined(_WIN32) && !defined(__wasm__) && !defined(MONITA_FW)
 #include <sys/ioctl.h>
 #include <termios.h>
 
@@ -261,7 +261,7 @@ void u8250_reg_write(U8250 *uart, int off, uint8_t val)
 
 void u8250_update(U8250 *uart)
 {
-#if !defined(_WIN32) && !defined(__wasm__)
+#if !defined(_WIN32) && !defined(__wasm__) && !defined(MONITA_FW)
 	if (IsKBHit()) {
 		if (!(uart->ioready & 1)) {
 			uart->in = ReadKBByte();

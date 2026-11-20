@@ -51,4 +51,9 @@ typedef struct VGATextOps {
 
 void vga_set_text_ops(VGAState *s, VGATextOps *ops, void *o);
 
+#ifdef MONITA_X86
+int vga_monita_info(VGAState *s, int *cols, int *rows, uint32_t *start);
+uint16_t vga_monita_cell(VGAState *s, uint32_t i);
+#endif
+
 #endif /* VGA_H */

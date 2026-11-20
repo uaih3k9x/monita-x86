@@ -137,6 +137,13 @@ static void cpu_enable_fpu(CPUABS *cpu)
 #endif
 #define PC_STEP_COUNT 512
 void pcmalloc_init(void *ptr, long len);
+#elif defined(MONITA_X86)
+/* monita-x86: 一次 pc_step 跑这么多条 (单核 A5 上约 1 ms 量级, 模拟循环按时间片让出 CPU) */
+#define MIXER_BUF_LEN 2048
+#ifndef PC_STEP_COUNT
+#define PC_STEP_COUNT 2048
+#endif
+#define pcmalloc_init(ptr, len)
 #else
 #define MIXER_BUF_LEN 2048
 #ifdef ANDROID
@@ -776,7 +783,7 @@ PC *pc_new(SimpleFBDrawFunc *redraw, void *redraw_data,
 	pc->initrd = conf->initrd;
 	pc->cmdline = conf->cmdline;
 	pc->enable_serial = conf->enable_serial;
-#if !defined(_WIN32) && !defined(__wasm__)
+#if !defined(_WIN32) && !defined(__wasm__) && !defined(MONITA_FW)
 	if (pc->enable_serial)
 		CaptureKeyboardInput();
 #endif

@@ -3666,8 +3666,8 @@ static bool verrw_helper(CPUI386 *cpu, int sel, int wr, int *zf)
 			return true;
 		}
 	} else {
-		/* code */
-		if (!wr && ((w2 >> 9) & 0x1) == 0) {
+		/* code: 永远不可写 (monita-x86 修: 原来 VERW 代码段给 ZF=1) */
+		if (wr || ((w2 >> 9) & 0x1) == 0) {
 			*zf = 0;
 			return true;
 		}

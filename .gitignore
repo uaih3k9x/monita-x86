@@ -18,3 +18,4 @@ work/
 # 本地脱敏词表（检查时临时拷进来）
 .public-safe.local
 .DS_Store
+__pycache__/

@@ -9,6 +9,15 @@
 | `vendor/tiny386/ini.c`、`ini.h` | inih | Ben Hoyt | BSD-3-Clause（文件头原文保留） |
 | `vendor/tiny386/vgafont.c` | VGA 8x16 / 8x8 字模数据（同 QEMU vgafont.h 一系） | — | 随 tiny386 分发 |
 
+## 对 tiny386 的改动
+
+都包在 `MONITA_X86` / `MONITA_FW` 宏里（i386.c 的修正除外），`git log -p vendor/tiny386` 可查：
+- `i386.c`：修 VERW 对代码段返回 ZF=1 的错（代码段永远不可写；tests/guest/pmtest.S 第 1 阶段查这个，QEMU 对照通过）。
+- `ide.c`：盘改走 `core/mxblk.c`（只读打开 + 内存写覆盖层）。
+- `pc.c`：设备版的 `PC_STEP_COUNT` / `pcmalloc_init`；固件不抓终端。
+- `misc.c`：固件里不编串口终端代码。
+- `vga.c` / `vga.h`：加两个只读查询（显示模式、文本格），给文本导出和状态栏用。
+
 ## 不在仓库里、也不编进固件的
 
 - **SeaBIOS / SeaVGABIOS**（LGPL-3.0）：只提交 `scripts/build_seabios.sh`，它从上游拉源码、套 tiny386 的 `seabios/config` 和 `seabios/patch`

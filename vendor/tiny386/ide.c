@@ -316,6 +316,10 @@ void *pcmalloc(long size);
 #define pcmalloc malloc
 #endif
 
+#ifdef MONITA_X86
+/* monita-x86: BlockDevice 的定义挪到 core/mxblk.h (同一个结构), 盘走 RAM 写覆盖层 */
+#include "mxblk.h"
+#else
 typedef void BlockDeviceCompletionFunc(void *opaque, int ret);
 
 struct BlockDevice {
@@ -329,6 +333,7 @@ struct BlockDevice {
                        BlockDeviceCompletionFunc *cb, void *opaque);
     void *opaque;
 };
+#endif
 
 typedef struct IDEState IDEState;
 
@@ -2360,6 +2365,10 @@ int ide_attach(IDEIFState *s, int drive, const char *filename)
     } else {
         bs = block_device_init(filename, BF_MODE_RW);
     }
+#elif defined(MONITA_X86)
+    BlockDevice *bs = mx_blockdev_open(filename);   /* 只读打开 + RAM 写覆盖层 */
+    if (!bs)
+        return -1;
 #else
     BlockDevice *bs = block_device_init(filename, BF_MODE_RW);
 #endif

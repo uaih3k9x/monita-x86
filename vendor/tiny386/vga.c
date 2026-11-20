@@ -2668,3 +2668,25 @@ void vga_set_text_ops(VGAState *s, VGATextOps *ops, void *o)
     s->vga_text_ops = ops;
     s->vga_text_obj = o;
 }
+
+#ifdef MONITA_X86
+/* monita-x86: 当前显示模式 (0 空白, 1 文本, 2 图形), 文本列数 / 行数和显存起始 (字), 文本内容按字读 vga_ram */
+int vga_monita_info(VGAState *s, int *cols, int *rows, uint32_t *start)
+{
+    int cheight = (s->cr[9] & 0x1f) + 1;
+    int h = s->cr[0x12] | ((s->cr[0x07] & 0x02) << 7) | ((s->cr[0x07] & 0x40) << 3);
+    if (cols) *cols = s->cr[0x01] + 1;
+    if (rows) *rows = (h + 1) / cheight;
+    if (start) *start = s->cr[0x0d] | (s->cr[0x0c] << 8);
+    return s->graphic_mode;
+}
+
+/* 文本模式第 i 个字符格 (从 start 起): 低 8 位字符, 高 8 位属性 (同 vga_text_refresh 读法: 每格 4 字节, 平面 0 / 1) */
+uint16_t vga_monita_cell(VGAState *s, uint32_t i)
+{
+    uint32_t a = i * 4;
+    if (a + 1 >= (uint32_t)s->vga_ram_size)
+        return 0;
+    return s->vga_ram[a] | (s->vga_ram[a + 1] << 8);
+}
+#endif

@@ -144,7 +144,7 @@ Win3.1 的盘有版权，要自己做，见 `docs/import-win31.md`；放到 `wor
    set EXTFLASH_HOST=<cs80-extflash>\host
    py\python.exe scripts\efs_put.py --port COM5 work\bios.bin work\vgabios.bin work\win31.img:hda.img
    # 或 Mac (pyusb 直开接口 7, 没上机验证过; 先停 Monita 上位机, 见第 6 步):
-   EXTFLASH_HOST=~/code/CiderLLM/tools/cs80-extflash/host python3 -I scripts/efs_put.py --port usb \
+   EXTFLASH_HOST=<cs80-extflash>/host python3 -I scripts/efs_put.py --port usb \
        work/bios.bin work/vgabios.bin work/win31.img:hda.img
    ```
    写约 183 KB/s、读回约 74 KB/s：6.1 MB 写 35 s 左右，读回一分半左右（`--no-verify` 不读回）。

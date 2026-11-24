@@ -62,7 +62,7 @@ int ql_fopen(const char *path, const char *mode){
     say("SIM: fopen 不认识的路径 %s\n", path); g_bad_fs++; return -1;
 }
 int ql_fsize(int fd){ return (int)SIZES[fd - 1]; }
-int ql_fseek(int fd, int32_t off, int32_t wh){ if (wh != 0 || (uint32_t)off > SIZES[fd - 1]) return -1; g_pos[fd] = (uint32_t)off; return 0; }
+int ql_fseek(int fd, int32_t off, int32_t wh){ if (wh != 0 || (uint32_t)off > SIZES[fd - 1]) return -1; g_pos[fd] = (uint32_t)off; return off; } /* 真机 lseek 风格: 成功返回新偏移 (11-22 Doom 真机实测) */
 int ql_fread(void *buf, uint32_t size, uint32_t count, int fd){
     uint32_t n = size * count, sz = SIZES[fd - 1];
     if (n > 4096u){ say("SIM: fread 一次 %u 字节 (实机只验证过 <= 4096)\n", n); g_bad_fs++; }

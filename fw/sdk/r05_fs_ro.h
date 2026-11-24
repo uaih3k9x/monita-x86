@@ -7,13 +7,13 @@
 #define R05_FS_RO_H
 #include <stdint.h>
 
-extern int ql_spi6_ext_nor_flash_init(void);              /* 0 = 成功 */
+extern int ql_spi6_ext_nor_flash_init(void);              /* lseek 风格: 成功返回新偏移 (>=0), 出错 <0; 11-22 Doom 真机实测 */
 extern int ql_spi6_ext_nor_flash_sffs_mount(void);        /* 0 = 成功; 内部 mount(0), 挂不上也不格式化。同次上电只调一次 */
 
 typedef int QFILE;                                        /* > 0 有效 */
 extern QFILE ql_fopen(const char *path, const char *mode);    /* 本固件只用 "rb" */
 extern int   ql_fread(void *buf, uint32_t size, uint32_t count, QFILE fd);  /* size = 1 时返回字节数 */
-extern int   ql_fseek(QFILE fd, int32_t offset, int32_t whence);           /* 0 = 成功 */
+extern int   ql_fseek(QFILE fd, int32_t offset, int32_t whence);           /* lseek 风格: 成功返回新偏移 (>=0), 出错 <0; 11-22 Doom 真机实测 */
 extern int   ql_fclose(QFILE fd);
 extern int   ql_fsize(QFILE fd);
 #define QL_SEEK_SET 0

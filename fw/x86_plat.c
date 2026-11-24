@@ -59,7 +59,7 @@ plat_file *plat_open_ro(const char *name){
 /* 一次最多读 4 KiB (extdump 实机只验证过这个长度), 循环读满; 返回读到的总字节数, 一开始就失败返回 -1 */
 int plat_read_at(plat_file *f, uint32_t off, void *buf, uint32_t n){
     if (f->pos != off){
-        if (ql_fseek(f->fd, (int32_t)off, QL_SEEK_SET) != 0){ f->pos = 0xffffffffu; return -1; }
+        if (ql_fseek(f->fd, (int32_t)off, QL_SEEK_SET) < 0){  /* 真机 lseek 风格: 成功返回新偏移 */ f->pos = 0xffffffffu; return -1; }
         f->pos = off;
     }
     uint32_t got = 0;

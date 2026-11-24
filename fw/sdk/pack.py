@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: BSD-3-Clause
 """Pack app.elf -> 2PPA container (base 0x60270000). Static only; does not flash.
 
 Container layout (checked byte-for-byte against the stock R05 app container, which is NOT shipped here):

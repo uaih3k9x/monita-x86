@@ -1,4 +1,4 @@
-/*
+/* SPDX-License-Identifier: BSD-3-Clause
  * R05 导入的函数原型 —— 每个参数都对照过原厂 app 的调用点（见 docs/r05-notes.md）。
  * 桩由 gen_stubs.py 按 imports_<app>.txt 生成, loader 按 sha256 前 4 字节解析。
  */

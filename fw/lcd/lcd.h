@@ -1,4 +1,4 @@
-/*
+/* SPDX-License-Identifier: BSD-3-Clause
  * 800x1280 MIPI 大屏: 帧缓冲 + 背光 + 上电顺序 (常量和顺序来自原厂 app 的调用点, 见 docs/r05-notes.md)。
  *
  *   pin118 func0 -> GPIO7 输出低(背光灭) -> ql_mipi_lcd_init(&{800,1280}) -> 无参 PM 锁

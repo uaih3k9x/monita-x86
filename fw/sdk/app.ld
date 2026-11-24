@@ -1,4 +1,5 @@
-/* R05 2PPA app link map. VMAs mirror the 原厂 container:
+/* SPDX-License-Identifier: BSD-3-Clause
+   R05 2PPA app link map. VMAs mirror the 原厂 container:
      .corestub -> RAM 0x80fe0000 (loader patches hashes->addrs here)
      .text/.rodata -> XIP flash 0x60271280
      .data -> RAM 0x80fe0640   .bss -> RAM 0x80fe1200

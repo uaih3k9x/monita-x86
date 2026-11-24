@@ -1,4 +1,4 @@
-/*
+/* SPDX-License-Identifier: BSD-3-Clause
  * Monita link 协议 v0 —— 纯逻辑部分 (CRC-32、流式拆帧、回包编码)。
  * 不依赖 R05 SDK, 主机上可以直接编译测试 (本仓库: tests/test_x86proto.c)。协议说明见 Monita-CS80 仓库 docs/protocol.md, x86 部分见 docs/protocol-x86.md。
  *

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: BSD-3-Clause
 """Static check of a packed 2PPA app against the R05 loader rules. Does NOT touch hardware.
 
 Rules below are read from the R05 AP loader (see docs/r05-notes.md §3):

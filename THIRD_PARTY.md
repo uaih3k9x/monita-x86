@@ -29,11 +29,11 @@
 - FreeDOS（GPL 等）：只提交下载 / 校验 / 制作脚本，不提交镜像。
 - Windows 3.1：有版权，维护者自备正版，仓库里只有导入步骤（`docs/import-win31.md`）。
 
-## 取自维护者 Monita-CS80 仓库的文件（再授权待确认）
+## 取自维护者 Monita-CS80 仓库的文件（作者已双授权为 BSD-3-Clause）
 
 `fw/link/proto.h`、`fw/lcd/lcd.h`、`fw/sdk/gen_stubs.py`、`fw/sdk/pack.py`、`fw/sdk/validate.py`（加了 x86 白名单）、
 `fw/sdk/r05_api.h`、`fw/sdk/app.ld` 取自维护者本人的 Monita-CS80 固件仓库（该仓库许可证是 PolyForm Noncommercial）。
-**以本仓库的 BSD-3-Clause 再授权这几份文件，需要维护者本人确认；确认之前别公开本仓库。**
+**作者（维护者本人）已就这几份文件双授权，以本仓库的 BSD-3-Clause 一并授权；每份文件头已加 `SPDX-License-Identifier: BSD-3-Clause`。**
 `fw/sdk/r05_fs_ro.h` 是本仓库自己写的（只声明读类接口），接口事实来自私有工具 cs80-extflash 的实机结果。
 `mac/x86kbd.py` 是本仓库自己写的 pyusb 版，没有复制 Monita 的 Swift 代码。
 `r05_exports.csv`（R05 导出表的哈希清单）属于原厂固件派生数据，不放进本仓库，构建时从 Monita-CS80 仓库读（见 `fw/build.sh`）。

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: BSD-3-Clause
 """Generate corestub.S: one Helios/Unisoc core_stub per imported symbol.
 
 Stub ABI (matches R05 原厂 app, verified against full_flash dump):

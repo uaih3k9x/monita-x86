@@ -126,7 +126,7 @@ Win3.1 的盘有版权，要自己做，见 `docs/import-win31.md`；放到 `wor
    certutil -hashfile work\vgabios.bin SHA256
    certutil -hashfile work\win31.img SHA256
    ```
-   - `app_x86.bin` 应为 `c4011913982f53ce57325ec8f50f131671af157102ab919ae29ec5e85743630f`（提交 865367b 构建，183,488 B；
+   - `app_x86.bin` 应为 `046d07c4ec225a710083bbe67025656c49d2a493df7aaa7106d124dec653da73`（提交 a01535a 构建，183,488 B；
      只改文档的提交不改变它，改了代码就以第 1 步重新打出来的为准）
    - `extdump_v2.bin` 应为 `16264e24428640ca4bd70fd33be2bdeff3b35246d6fad113a46221494344e04e`
    - `bios.bin` / `vgabios.bin` 见本节开头；`win31.img` 是维护者自己做的盘，以第 1 步打出来的为准
